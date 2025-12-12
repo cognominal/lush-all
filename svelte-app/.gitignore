@@ -1,0 +1,7 @@
+.svelte-kit/
+.vercel/
+.netlify/
+node_modules/
+dist/
+.DS_Store
+

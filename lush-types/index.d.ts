@@ -9,6 +9,7 @@ export type YamlTokenType =
   | 'newline'
   | 'directive-line'
   | 'directive'
+  | 'error'
   | 'anchor'
   | 'tag'
   | 'seq-item-ind'
@@ -32,7 +33,11 @@ export type YamlTokenType =
   | 'flow-collection'
   | 'document'
 
-export type TokenTypeName = YamlTokenType
+export declare const SPACE_TYPE: "Space"
+export declare const NAKED_STRING_TYPE: "NakedString"
+
+export type SyntheticTokenType = typeof SPACE_TYPE | typeof NAKED_STRING_TYPE
+export type TokenTypeName = YamlTokenType | SyntheticTokenType
 
 export type CompletionTokenKind =
   | 'Folder'

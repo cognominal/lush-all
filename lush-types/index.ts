@@ -7,6 +7,7 @@ export type YamlTokenType =
   | 'newline'
   | 'directive-line'
   | 'directive'
+  | 'error'
   | 'anchor'
   | 'tag'
   | 'seq-item-ind'
@@ -30,7 +31,11 @@ export type YamlTokenType =
   | 'flow-collection'
   | 'document'
 
-export type TokenTypeName = YamlTokenType
+export const SPACE_TYPE = 'Space'
+export const NAKED_STRING_TYPE = 'NakedString'
+
+export type SyntheticTokenType = typeof SPACE_TYPE | typeof NAKED_STRING_TYPE
+export type TokenTypeName = YamlTokenType | SyntheticTokenType
 
 export type CompletionTokenKind =
   | 'Folder'
@@ -93,8 +98,6 @@ export interface InputToken {
 export type TokenLine = InputToken[]
 export type TokenMultiLine = TokenLine[]
 
-export const SPACE_TYPE = 'Space'
-export const NAKED_STRING_TYPE = 'NakedString'
 
 export function tokenText(token: InputToken | undefined): string {
   if (!token) return ''

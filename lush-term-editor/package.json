@@ -1,7 +1,7 @@
 {
   "name": "lush-editor",
   "version": "0.0.1",
- bd  "description": "Structural editor experiments using lush tokens and yaml",
+  "description": "Structural editor experiments using lush tokens and yaml",
   "type": "module",
   "private": true,
   "scripts": {

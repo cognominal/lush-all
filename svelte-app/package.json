@@ -1,0 +1,31 @@
+{
+  "name": "svelte-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "sync": "svelte-kit sync",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "postinstall": "svelte-kit sync"
+  },
+  "dependencies": {
+    "@codemirror/lang-yaml": "^6.1.2",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@sveltejs/kit": "^2.8.0",
+    "codemirror": "^6.0.1",
+    "lush-types": "file:../lush-types",
+    "svelte": "^5.0.0",
+    "yaml": "file:../yaml"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^3.3.1",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@types/node": "^20.11.20",
+    "svelte-check": "^4.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
+  }
+}
