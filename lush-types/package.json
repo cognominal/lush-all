@@ -1,0 +1,22 @@
+{
+  "name": "lush-types",
+  "version": "0.0.1",
+  "description": "Shared TokenMultiLine shapes and helpers for lush",
+  "type": "module",
+  "private": true,
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "scripts": {
+    "test": "vitest --passWithNoTests"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
+  }
+}

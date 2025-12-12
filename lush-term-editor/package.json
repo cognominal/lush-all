@@ -1,0 +1,19 @@
+{
+  "name": "lush-editor",
+  "version": "0.0.1",
+ bd  "description": "Structural editor experiments using lush tokens and yaml",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
+  "packageManager": "bun@1.1.34",
+  "dependencies": {
+    "lush-types": "file:../lush-types",
+    "yaml": "file:../yaml"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^1.6.0"
+  }
+}

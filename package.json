@@ -1,0 +1,10 @@
+{
+  "name": "lush-all",
+  "private": true,
+  "packageManager": "bun@1.1.34",
+  "workspaces": ["yaml", "lush-types", "lush-term-editor"],
+  "scripts": {
+    "test": "bun run --cwd yaml test && bun run --cwd lush-types test && bun run --cwd lush-term-editor test",
+    "install:all": "bun install --cwd yaml && bun install --cwd lush-types && bun install --cwd lush-term-editor"
+  }
+}
