@@ -6,6 +6,7 @@
 
   const dispatch = createEventDispatcher<{
     hover: { range: { from: number; to: number } | null }
+    toggle: { range: { from: number; to: number } | null }
   }>()
 </script>
 
@@ -20,6 +21,7 @@
         title={item.type}
         on:mouseenter={() => dispatch('hover', { range: item.range })}
         on:mouseleave={() => dispatch('hover', { range: null })}
+        on:click={() => dispatch('toggle', { range: item.range })}
       >
         <code>{item.type}</code>
       </button>

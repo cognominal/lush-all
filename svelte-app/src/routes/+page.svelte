@@ -12,6 +12,7 @@
   let analysis: YamlAnalysis = analyzeYaml(yamlText)
   let cursorOffset = 0
   let hoverRange: { from: number; to: number } | null = null
+  let editor: any = null
 
   let parseTimer: ReturnType<typeof setTimeout> | null = null
   function scheduleParse(next: string) {
@@ -33,13 +34,18 @@
     </div>
 
     <YamlEditor
+      bind:this={editor}
       value={yamlText}
       highlightRange={hoverRange}
       on:change={(e: CustomEvent<{ value: string }>) => scheduleParse(e.detail.value)}
       on:cursor={(e: CustomEvent<{ offset: number }>) => (cursorOffset = e.detail.offset)}
     />
 
-    <BreadcrumbBar items={crumbs} on:hover={(e: CustomEvent<{ range: { from: number; to: number } | null }>) => (hoverRange = e.detail.range)} />
+    <BreadcrumbBar
+      items={crumbs}
+      on:hover={(e: CustomEvent<{ range: { from: number; to: number } | null }>) => (hoverRange = e.detail.range)}
+      on:toggle={(e: CustomEvent<{ range: { from: number; to: number } | null }>) => editor?.toggleFold(e.detail.range)}
+    />
   </div>
 
   {#if analysis.errors.length > 0}

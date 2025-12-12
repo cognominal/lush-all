@@ -6,6 +6,7 @@
   import { basicSetup } from 'codemirror'
   import { yaml } from '@codemirror/lang-yaml'
   import { oneDark } from '@codemirror/theme-one-dark'
+  import { codeFolding, foldEffect, foldedRanges, unfoldEffect } from '@codemirror/language'
 
   export let value: string
   export let highlightRange: { from: number; to: number } | null = null
@@ -62,6 +63,7 @@
         doc: value,
         extensions: [
           basicSetup,
+          codeFolding(),
           yaml(),
           oneDark,
           updateListener,
@@ -94,6 +96,33 @@
 
   $: if (view) {
     view.dispatch({ effects: setHighlight.of(highlightRange) })
+  }
+
+  export function toggleFold(range: { from: number; to: number } | null) {
+    if (!view || !range) return
+
+    const fromLine = view.state.doc.lineAt(range.from)
+    const toLine = view.state.doc.lineAt(range.to)
+    if (toLine.number <= fromLine.number) return
+
+    const foldRange = { from: fromLine.to, to: toLine.to }
+    if (foldRange.to <= foldRange.from) return
+
+    let exists = false
+    foldedRanges(view.state).between(
+      foldRange.from,
+      foldRange.to,
+      (from, to) => {
+        if (from === foldRange.from && to === foldRange.to) {
+          exists = true
+          return false
+        }
+      }
+    )
+
+    view.dispatch({
+      effects: (exists ? unfoldEffect : foldEffect).of(foldRange)
+    })
   }
 
   onDestroy(() => {
