@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte'
-
   type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
   export let items: BreadcrumbItem[] = []
 
-  const dispatch = createEventDispatcher<{
-    hover: { range: { from: number; to: number } | null }
-    toggle: { range: { from: number; to: number } | null }
-  }>()
+  export let onHover: ((range: { from: number; to: number } | null) => void) | undefined =
+    undefined
+  export let onToggle: ((range: { from: number; to: number } | null) => void) | undefined =
+    undefined
 </script>
 
 <div class="bar" aria-label="Breadcrumbs">
@@ -19,9 +17,9 @@
         type="button"
         class="crumbBtn"
         title={item.type}
-        on:mouseenter={() => dispatch('hover', { range: item.range })}
-        on:mouseleave={() => dispatch('hover', { range: null })}
-        on:click={() => dispatch('toggle', { range: item.range })}
+        onmouseenter={() => onHover?.(item.range)}
+        onmouseleave={() => onHover?.(null)}
+        onclick={() => onToggle?.(item.range)}
       >
         <code>{item.type}</code>
       </button>

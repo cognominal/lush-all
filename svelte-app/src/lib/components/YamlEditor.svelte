@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
-  import { createEventDispatcher } from 'svelte'
   import { EditorState, StateEffect, StateField } from '@codemirror/state'
   import { Decoration, EditorView } from '@codemirror/view'
   import { basicSetup } from 'codemirror'
@@ -10,14 +9,16 @@
 
   export let value: string
   export let highlightRange: { from: number; to: number } | null = null
+  export let foldToggleRequest:
+    | { range: { from: number; to: number } | null; id: number }
+    | null = null
 
-  const dispatch = createEventDispatcher<{
-    change: { value: string }
-    cursor: { offset: number }
-  }>()
+  export let onChange: ((value: string) => void) | undefined = undefined
+  export let onCursor: ((offset: number) => void) | undefined = undefined
 
   let host: HTMLDivElement
   let view: EditorView | null = null
+  let lastFoldToggleId = -1
 
   const setHighlight = StateEffect.define<{ from: number; to: number } | null>()
 
@@ -46,13 +47,13 @@
 
   function emitCursorOffset() {
     if (!view) return
-    dispatch('cursor', { offset: view.state.selection.main.head })
+    onCursor?.(view.state.selection.main.head)
   }
 
   onMount(() => {
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        dispatch('change', { value: update.state.doc.toString() })
+        onChange?.(update.state.doc.toString())
       }
       if (update.selectionSet) emitCursorOffset()
     })
@@ -98,7 +99,7 @@
     view.dispatch({ effects: setHighlight.of(highlightRange) })
   }
 
-  export function toggleFold(range: { from: number; to: number } | null) {
+  function toggleFold(range: { from: number; to: number } | null) {
     if (!view || !range) return
 
     const fromLine = view.state.doc.lineAt(range.from)
@@ -123,6 +124,11 @@
     view.dispatch({
       effects: (exists ? unfoldEffect : foldEffect).of(foldRange)
     })
+  }
+
+  $: if (view && foldToggleRequest && foldToggleRequest.id !== lastFoldToggleId) {
+    lastFoldToggleId = foldToggleRequest.id
+    toggleFold(foldToggleRequest.range)
   }
 
   onDestroy(() => {

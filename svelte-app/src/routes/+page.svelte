@@ -1,10 +1,13 @@
 <script lang="ts">
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
+  import TokenYamlPane from '$lib/components/TokenYamlPane.svelte'
   import YamlEditor from '$lib/components/YamlEditor.svelte'
   import { YAML_SAMPLE } from '$lib/logic/yamlSample'
   import {
     analyzeYaml,
     breadcrumbsAtOffset,
+    selectedTokenInputAtOffset,
+    tokenInputAsYaml,
     type YamlAnalysis
   } from '$lib/logic/yamlAnalysis'
 
@@ -12,7 +15,9 @@
   let analysis: YamlAnalysis = analyzeYaml(yamlText)
   let cursorOffset = 0
   let hoverRange: { from: number; to: number } | null = null
-  let editor: any = null
+  let foldToggleId = 0
+  let foldToggleRequest: { range: { from: number; to: number } | null; id: number } | null =
+    null
 
   let parseTimer: ReturnType<typeof setTimeout> | null = null
   function scheduleParse(next: string) {
@@ -24,6 +29,8 @@
   }
 
   $: crumbs = breadcrumbsAtOffset(analysis, cursorOffset)
+  $: selectedTok = selectedTokenInputAtOffset(analysis, cursorOffset)
+  $: selectedTokYaml = tokenInputAsYaml(selectedTok)
 </script>
 
 <div class="app">
@@ -33,18 +40,22 @@
       <div class="hint">Move cursor to update breadcrumbs</div>
     </div>
 
-    <YamlEditor
-      bind:this={editor}
-      value={yamlText}
-      highlightRange={hoverRange}
-      on:change={(e: CustomEvent<{ value: string }>) => scheduleParse(e.detail.value)}
-      on:cursor={(e: CustomEvent<{ offset: number }>) => (cursorOffset = e.detail.offset)}
-    />
+    <div class="split">
+      <YamlEditor
+        value={yamlText}
+        highlightRange={hoverRange}
+        {foldToggleRequest}
+        onChange={(next) => scheduleParse(next)}
+        onCursor={(offset) => (cursorOffset = offset)}
+      />
+
+      <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />
+    </div>
 
     <BreadcrumbBar
       items={crumbs}
-      on:hover={(e: CustomEvent<{ range: { from: number; to: number } | null }>) => (hoverRange = e.detail.range)}
-      on:toggle={(e: CustomEvent<{ range: { from: number; to: number } | null }>) => editor?.toggleFold(e.detail.range)}
+      onHover={(range) => (hoverRange = range)}
+      onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
     />
   </div>
 
@@ -54,3 +65,17 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    align-items: stretch;
+  }
+
+  @media (max-width: 900px) {
+    .split {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
