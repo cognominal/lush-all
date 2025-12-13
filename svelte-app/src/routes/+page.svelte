@@ -29,7 +29,8 @@
   }
 
   $: crumbs = breadcrumbsAtOffset(analysis, cursorOffset)
-  $: selectedTok = selectedTokenInputAtOffset(analysis, cursorOffset)
+  $: paneOffset = hoverRange?.from ?? cursorOffset
+  $: selectedTok = selectedTokenInputAtOffset(analysis, paneOffset)
   $: selectedTokYaml = tokenInputAsYaml(selectedTok)
 </script>
 
