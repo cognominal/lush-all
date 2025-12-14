@@ -10,6 +10,7 @@
     tokenInputAsYaml,
     type YamlAnalysis
   } from '$lib/logic/yamlAnalysis'
+  import { add_sequence_or_map } from '$lib/logic/inputHandling'
 
   let yamlText = YAML_SAMPLE
   let analysis: YamlAnalysis = analyzeYaml(yamlText)
@@ -48,6 +49,16 @@
         {foldToggleRequest}
         onChange={(next) => scheduleParse(next)}
         onCursor={(offset) => (cursorOffset = offset)}
+        onReturn={(docText, cursorOffset) => {
+          const res = add_sequence_or_map(docText, cursorOffset)
+          if (!res) return null
+          return {
+            from: res.changes.from,
+            to: res.changes.to,
+            insert: res.changes.insert,
+            selectionOffset: res.selectionOffset
+          }
+        }}
       />
 
       <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />

@@ -6,6 +6,7 @@
   import { yaml } from '@codemirror/lang-yaml'
   import { oneDark } from '@codemirror/theme-one-dark'
   import { codeFolding, foldEffect, foldedRanges, unfoldEffect } from '@codemirror/language'
+  import { keymap } from '@codemirror/view'
 
   export let value: string
   export let highlightRange: { from: number; to: number } | null = null
@@ -15,6 +16,8 @@
 
   export let onChange: ((value: string) => void) | undefined = undefined
   export let onCursor: ((offset: number) => void) | undefined = undefined
+  export let onReturn: ((docText: string, cursorOffset: number) => { from: number; to: number; insert: string; selectionOffset: number } | null) | undefined =
+    undefined
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -67,6 +70,24 @@
           codeFolding(),
           yaml(),
           oneDark,
+          keymap.of([
+            {
+              key: 'Enter',
+              run: () => {
+                if (!view) return true
+                const offset = view.state.selection.main.head
+                const docText = view.state.doc.toString()
+                const res = onReturn?.(docText, offset)
+                if (res) {
+                  view.dispatch({
+                    changes: { from: res.from, to: res.to, insert: res.insert },
+                    selection: { anchor: res.selectionOffset }
+                  })
+                }
+                return true
+              }
+            }
+          ]),
           updateListener,
           highlightField,
           EditorView.theme({
