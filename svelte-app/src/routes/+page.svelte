@@ -1,5 +1,6 @@
 <script lang="ts">
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
+  import JsStructurePane from '$lib/components/JsStructurePane.svelte'
   import TokenYamlPane from '$lib/components/TokenYamlPane.svelte'
   import YamlEditor from '$lib/components/YamlEditor.svelte'
   import { YAML_SAMPLE } from '$lib/logic/yamlSample'
@@ -63,6 +64,8 @@
 
       <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />
     </div>
+
+    <JsStructurePane value={analysis.jsView} />
 
     <BreadcrumbBar
       items={crumbs}

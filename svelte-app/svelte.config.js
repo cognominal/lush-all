@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-auto'
+import adapter from './adapter-node-silent.js'
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {

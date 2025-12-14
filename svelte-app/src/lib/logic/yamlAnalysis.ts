@@ -6,10 +6,12 @@ import {
   isNode,
   isSeq,
   lushify,
+  parse,
   parseDocument,
   stringify,
   type Node as YamlNode
 } from '@lush/yaml'
+import { inspect } from 'util'
 
 export type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
 
@@ -17,6 +19,7 @@ export type YamlAnalysis = {
   yamlText: string
   lush: TokenMultiLine | undefined
   doc: Document.Parsed | null
+  jsView: string
   errors: string[]
 }
 
@@ -46,7 +49,16 @@ export function analyzeYaml(yamlText: string): YamlAnalysis {
     lush = undefined
   }
 
-  return { yamlText, lush, doc, errors }
+  let jsView = ''
+  try {
+    const jsVal = parse(yamlText)
+    jsView = inspect(jsVal, { depth: Infinity, colors: false, compact: false })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    jsView = `! invalid YAML: ${msg}`
+  }
+
+  return { yamlText, lush, doc, jsView, errors }
 }
 
 function offsetToLineCol(text: string, offset: number): { lineIdx: number; colIdx: number } {
