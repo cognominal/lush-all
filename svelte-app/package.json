@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:tauri": "TAURI=1 vite build",
     "preview": "vite preview",
     "sync": "svelte-kit sync",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@sveltejs/adapter-auto": "^3.3.1",
     "@sveltejs/adapter-node": "^5.4.0",
+    "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@types/node": "^20.11.20",
     "svelte-check": "^4.0.0",

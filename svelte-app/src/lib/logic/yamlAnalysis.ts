@@ -74,7 +74,7 @@ function offsetToLineCol(text: string, offset: number): { lineIdx: number; colId
   return { lineIdx, colIdx: clamped - lineStart }
 }
 
-function normalizeTokenPositions(line: InputToken[]): void {
+function normalizeTokenPositions(line: Array<InputToken | null | undefined>): void {
   let cursor = 0
   for (let i = 0; i < line.length; i++) {
     const tok = line[i]
@@ -96,7 +96,8 @@ export function selectedTokenInputAtOffset(
   const line = lush[lineIdx]
   if (!line) return null
 
-  if (line.some(t => typeof t?.x !== 'number')) normalizeTokenPositions(line as any)
+  const needsNormalize = line.some(t => t != null && typeof t.x !== 'number')
+  if (needsNormalize) normalizeTokenPositions(line)
 
   for (let i = 0; i < line.length; i++) {
     const tok = line[i]
@@ -132,8 +133,21 @@ function containsOffset(
 }
 
 function nodeTokenType(node: YamlNode): string | null {
-  const t = (node as any)?.srcToken?.type
+  const t = (node as unknown as { srcToken?: { type?: unknown } }).srcToken?.type
   return typeof t === 'string' ? t : null
+}
+
+function getItems(value: unknown): unknown[] {
+  if (typeof value !== 'object' || value === null) return []
+  const rec = value as Record<string, unknown>
+  return Array.isArray(rec.items) ? rec.items : []
+}
+
+function getPairKeyValue(value: unknown): { key: unknown; value: unknown } | null {
+  if (typeof value !== 'object' || value === null) return null
+  const rec = value as Record<string, unknown>
+  if (!('key' in rec) || !('value' in rec)) return null
+  return { key: rec.key, value: rec.value }
 }
 
 function findDeepestPathAtOffset(
@@ -146,9 +160,10 @@ function findDeepestPathAtOffset(
   const nextPath = [...path, node]
 
   if (isMap(node)) {
-    for (const pair of node.items) {
-      const key = (pair as any)?.key
-      const value = (pair as any)?.value
+    for (const pair of getItems(node)) {
+      const kv = getPairKeyValue(pair)
+      const key = kv?.key
+      const value = kv?.value
 
       if (isNode(key) && containsOffset(key, offset)) {
         return findDeepestPathAtOffset(key, offset, nextPath)
@@ -160,7 +175,7 @@ function findDeepestPathAtOffset(
   }
 
   if (isSeq(node)) {
-    for (const item of node.items as any[]) {
+    for (const item of getItems(node)) {
       if (isNode(item) && containsOffset(item, offset)) {
         return findDeepestPathAtOffset(item, offset, nextPath)
       }
