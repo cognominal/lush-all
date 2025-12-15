@@ -11,7 +11,6 @@ import {
   stringify,
   type Node as YamlNode
 } from '@lush/yaml'
-import { inspect } from 'util'
 
 export type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
 
@@ -52,13 +51,51 @@ export function analyzeYaml(yamlText: string): YamlAnalysis {
   let jsView = ''
   try {
     const jsVal = parse(yamlText)
-    jsView = inspect(jsVal, { depth: Infinity, colors: false, compact: false })
+    jsView = safePrettyPrint(jsVal)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     jsView = `! invalid YAML: ${msg}`
   }
 
   return { yamlText, lush, doc, jsView, errors }
+}
+
+function safePrettyPrint(value: unknown): string {
+  const seen = new WeakSet<object>()
+  const replacer = (_key: string, v: unknown): unknown => {
+    if (typeof v === 'bigint') return `${v}n`
+    if (typeof v === 'function') return `[Function${v.name ? `: ${v.name}` : ''}]`
+    if (typeof v !== 'object' || v === null) return v
+
+    if (seen.has(v)) return '[Circular]'
+    seen.add(v)
+
+    if (v instanceof Map) {
+      return {
+        _type: 'Map',
+        entries: Array.from(v.entries())
+      }
+    }
+
+    if (v instanceof Set) {
+      return {
+        _type: 'Set',
+        values: Array.from(v.values())
+      }
+    }
+
+    if (v instanceof Date) return v.toISOString()
+    if (v instanceof RegExp) return String(v)
+    if (v instanceof Error) return { name: v.name, message: v.message, stack: v.stack }
+
+    return v
+  }
+
+  try {
+    return JSON.stringify(value, replacer, 2) ?? String(value)
+  } catch {
+    return String(value)
+  }
 }
 
 function offsetToLineCol(text: string, offset: number): { lineIdx: number; colIdx: number } {

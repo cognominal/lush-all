@@ -12,7 +12,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@lush/yaml': path.resolve(here, '../yaml/src/index.ts')
+      '@lush/yaml': path.resolve(here, '../yaml/src/index.ts'),
+      process: 'process/browser',
+      buffer: 'buffer'
     }
   },
   server: {

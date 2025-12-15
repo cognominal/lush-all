@@ -1,6 +1,11 @@
 import process from 'process'
 import { Buffer } from 'buffer'
 
-;(globalThis as any).process ??= process
-;(globalThis as any).Buffer ??= Buffer
+type GlobalPolyfills = typeof globalThis & {
+  process?: typeof process
+  Buffer?: typeof Buffer
+}
 
+const g = globalThis as GlobalPolyfills
+g.process ??= process
+g.Buffer ??= Buffer
