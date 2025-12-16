@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.lush.tauri_svelte_app",
   "build": {
-    "beforeDevCommand": "bun run --cwd ../../svelte-app dev -- --host 127.0.0.1 --port 5173",
+    "beforeDevCommand": "bun run --cwd ../svelte-app dev -- --host 127.0.0.1 --port 5173",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeBuildCommand": "bun run --cwd ../../svelte-app build:tauri",
-    "frontendDist": "../../svelte-app/build"
+    "beforeBuildCommand": "bun run --cwd ../svelte-app build:tauri",
+    "frontendDist": "../svelte-app/build"
   },
   "app": {
     "windows": [
@@ -24,6 +24,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": "all",
+    "icon": ["icons/icon.png"]
   }
 }
