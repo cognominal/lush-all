@@ -30,7 +30,6 @@
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@types/node": "^20.11.20",
-    "@skeletonlabs/skeleton": "^2.10.3",
     "@skeletonlabs/tw-plugin": "^0.4.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",

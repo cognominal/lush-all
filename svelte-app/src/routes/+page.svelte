@@ -36,15 +36,14 @@
   $: selectedTokYaml = tokenInputAsYaml(selectedTok)
 </script>
 
-<div class="min-h-screen bg-surface-900 text-surface-50">
-  <div class="mx-auto flex max-w-6xl flex-col gap-4 p-6">
-    <div class="card">
-      <div class="flex items-baseline justify-between gap-3 border-b border-surface-500/20 px-4 py-3">
-        <div class="text-xs font-medium tracking-wide text-surface-200">YAML_SAMPLE</div>
-        <div class="text-xs text-surface-300">Move cursor to update breadcrumbs</div>
-      </div>
+<div class="flex flex-col gap-4 text-surface-50">
+  <div class="card">
+    <div class="flex items-baseline justify-between gap-3 border-b border-surface-500/20 px-4 py-3">
+      <div class="text-xs font-medium tracking-wide text-surface-200">YAML_SAMPLE</div>
+      <div class="text-xs text-surface-300">Move cursor to update breadcrumbs</div>
+    </div>
 
-      <div class="grid grid-cols-1 items-stretch gap-0 lg:grid-cols-[1fr_360px]">
+    <div class="grid grid-cols-1 items-stretch gap-0 lg:grid-cols-[1fr_360px]">
       <YamlEditor
         value={yamlText}
         highlightRange={hoverRange}
@@ -63,22 +62,21 @@
         }}
       />
 
-        <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />
-      </div>
-
-      <JsStructurePane value={analysis.jsView} />
-
-      <BreadcrumbBar
-        items={crumbs}
-        onHover={(range) => (hoverRange = range)}
-        onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
-      />
+      <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />
     </div>
 
-    {#if analysis.errors.length > 0}
-      <div class="text-xs text-error-400">
-        {analysis.errors[0]}
-      </div>
-    {/if}
+    <JsStructurePane value={analysis.jsView} />
+
+    <BreadcrumbBar
+      items={crumbs}
+      onHover={(range) => (hoverRange = range)}
+      onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
+    />
   </div>
+
+  {#if analysis.errors.length > 0}
+    <div class="text-xs text-error-400">
+      {analysis.errors[0]}
+    </div>
+  {/if}
 </div>

@@ -90,9 +90,9 @@ function main(): never {
   }
 
   const tauriDir = tauriProjectDir()
-  const manifestPath = 'src-tauri/Cargo.toml'
 
-  const baseArgs = ['tauri', parsed.command, '--manifest-path', manifestPath]
+  // Note: `cargo tauri` does not accept `--manifest-path`; we rely on `cwd` instead.
+  const baseArgs = ['tauri', parsed.command]
   const expectedTarget = expectedTargetForCurrentMachine()
 
   if (parsed.command === 'build') {

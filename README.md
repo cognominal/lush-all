@@ -11,17 +11,35 @@ uses  `lush-types/`
 
 ## install
 
-We suppose the [bun](https://en.wikipedia.org/wiki/Bun_(software)) package manager installed.
+We suppose the [bun](https://en.wikipedia.org/wiki/Bun_(software))
+package manager installed.
 
 Run `bun install:all`
 
 ## Current deliverable
 
 Only dev mode so far.
+In the [sveltekit](https://svelte.dev) app, the menu bar is built using [skeleton](https://v2.skeleton.dev/)
+widgets.
+In the  [tauri](https://v2.tauri.app/start/) app, the system menubar is used using
+rust API.
+Beyond that the 2 apps are identical.
+Currenly there is is only "Lush/About" that displays a popup.
+
+When lish will run in terminal outside of svelte of tauri, it will
+have its onw system of menus.
+
+There are package.json build scripts for different combinations
+of software/hardware platforms. They are untested.
+
+## svelte app
+
 After install. Run `bun run dev`
 See [svelte-app/app.md](svelte-app/app.md])
 
-## Layout
+## tauri app
+
+## Monorepo Layout
 
 - `lush-types` is a local npm package to define types used everywhere else
 = `yaml/` is a  it is a copy of my  `lush` branch of my local fork of [yaml](https://github.com/eemeli/yaml)
