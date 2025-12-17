@@ -36,14 +36,15 @@
   $: selectedTokYaml = tokenInputAsYaml(selectedTok)
 </script>
 
-<div class="app">
-  <div class="card">
-    <div class="header">
-      <div class="title">YAML_SAMPLE</div>
-      <div class="hint">Move cursor to update breadcrumbs</div>
-    </div>
+<div class="min-h-screen bg-surface-900 text-surface-50">
+  <div class="mx-auto flex max-w-6xl flex-col gap-4 p-6">
+    <div class="card">
+      <div class="flex items-baseline justify-between gap-3 border-b border-surface-500/20 px-4 py-3">
+        <div class="text-xs font-medium tracking-wide text-surface-200">YAML_SAMPLE</div>
+        <div class="text-xs text-surface-300">Move cursor to update breadcrumbs</div>
+      </div>
 
-    <div class="split">
+      <div class="grid grid-cols-1 items-stretch gap-0 lg:grid-cols-[1fr_360px]">
       <YamlEditor
         value={yamlText}
         highlightRange={hoverRange}
@@ -62,35 +63,22 @@
         }}
       />
 
-      <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />
+        <TokenYamlPane title="Selected Token (YAML)" yamlText={selectedTokYaml} />
+      </div>
+
+      <JsStructurePane value={analysis.jsView} />
+
+      <BreadcrumbBar
+        items={crumbs}
+        onHover={(range) => (hoverRange = range)}
+        onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
+      />
     </div>
 
-    <JsStructurePane value={analysis.jsView} />
-
-    <BreadcrumbBar
-      items={crumbs}
-      onHover={(range) => (hoverRange = range)}
-      onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
-    />
+    {#if analysis.errors.length > 0}
+      <div class="text-xs text-error-400">
+        {analysis.errors[0]}
+      </div>
+    {/if}
   </div>
-
-  {#if analysis.errors.length > 0}
-    <div class="hint" style="color: rgba(248, 113, 113, 0.9);">
-      {analysis.errors[0]}
-    </div>
-  {/if}
 </div>
-
-<style>
-  .split {
-    display: grid;
-    grid-template-columns: 1fr 360px;
-    align-items: stretch;
-  }
-
-  @media (max-width: 900px) {
-    .split {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>

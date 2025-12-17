@@ -8,60 +8,27 @@
     undefined
 </script>
 
-<div class="bar" aria-label="Breadcrumbs">
+<div
+  class="flex flex-wrap items-center gap-1.5 border-t border-surface-500/20 px-3 py-2"
+  aria-label="Breadcrumbs"
+>
   {#if items.length === 0}
-    <span class="crumb muted">(no selection)</span>
+    <span class="text-xs text-surface-300">(no selection)</span>
   {:else}
     {#each items as item, i (i)}
       <button
         type="button"
-        class="crumbBtn"
+        class="rounded-full border border-surface-500/25 bg-surface-500/10 px-2 py-0.5 font-mono text-xs text-surface-100/90"
         title={item.type}
         onmouseenter={() => onHover?.(item.range)}
         onmouseleave={() => onHover?.(null)}
         onclick={() => onToggle?.(item.range)}
       >
-        <code>{item.type}</code>
+        {item.type}
       </button>
       {#if i < items.length - 1}
-        <span class="sep">/</span>
+        <span class="text-xs text-surface-500/60">/</span>
       {/if}
     {/each}
   {/if}
 </div>
-
-<style>
-  .bar {
-    border-top: 1px solid var(--border);
-    padding: 10px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .crumbBtn {
-    all: unset;
-    cursor: default;
-  }
-
-  .crumbBtn code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-      'Liberation Mono', 'Courier New', monospace;
-    font-size: 12px;
-    color: rgba(226, 232, 240, 0.9);
-    background: rgba(148, 163, 184, 0.08);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    padding: 2px 6px;
-    border-radius: 999px;
-  }
-
-  .sep {
-    color: rgba(226, 232, 240, 0.35);
-    font-size: 12px;
-  }
-
-  .muted {
-    color: var(--muted);
-  }
-</style>

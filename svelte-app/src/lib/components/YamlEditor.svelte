@@ -158,10 +158,4 @@
   })
 </script>
 
-<div class="editor" bind:this={host}></div>
-
-<style>
-  .editor {
-    border-bottom: 1px solid var(--border);
-  }
-</style>
+<div class="border-b border-surface-500/20" bind:this={host}></div>
