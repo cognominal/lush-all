@@ -4,9 +4,53 @@
   let aboutOpen = false
   let aboutMessage = 'Lush app (early stage)'
 
+  let loginOpen = false
+  let loginStatus: { state: 'idle' | 'loading' | 'loaded' | 'error'; message?: string } = {
+    state: 'idle'
+  }
+  let loginUserEmail: string | null = null
+
   function openAbout() {
     aboutMessage = 'Lush app (early stage)'
     aboutOpen = true
+  }
+
+  async function openLogin() {
+    loginOpen = true
+    loginStatus = { state: 'loading' }
+    loginUserEmail = null
+
+    try {
+      const res = await fetch('/api/me')
+      const data: unknown = await res.json()
+      if (!data || typeof data !== 'object') {
+        loginStatus = { state: 'error', message: 'Unexpected /api/me response' }
+        return
+      }
+      const authenticated = (data as { authenticated?: unknown }).authenticated
+      if (authenticated === true) {
+        const user = (data as { user?: unknown }).user
+        if (user && typeof user === 'object') {
+          const email = (user as { email?: unknown }).email
+          if (typeof email === 'string') loginUserEmail = email
+        }
+        loginStatus = { state: 'loaded', message: 'Already signed in.' }
+        return
+      }
+      if (authenticated === false) {
+        loginStatus = { state: 'loaded' }
+        return
+      }
+      loginStatus = { state: 'error', message: 'Unexpected /api/me response' }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      loginStatus = { state: 'error', message }
+    }
+  }
+
+  function continueLogin() {
+    const returnTo = `${location.pathname}${location.search}${location.hash}`
+    window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
   }
 
   type Unlisten = () => void
@@ -57,6 +101,8 @@
       const action = (detail as { action?: unknown }).action
       if (action === 'about') {
         openAbout()
+      } else if (action === 'login') {
+        void openLogin()
       }
     }
     window.addEventListener('lush:menu-action', onDomMenuAction as EventListener)
@@ -113,5 +159,57 @@
         </button>
       </div>
     </div>
+  </div>
+{/if}
+
+{#if loginOpen}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-surface-900/60 p-4"
+    role="dialog"
+    aria-modal="true"
+    tabindex="0"
+    onclick={(e) => {
+      if (e.currentTarget === e.target) loginOpen = false
+    }}
+    onkeydown={(e) => {
+      if (e.key === 'Escape') loginOpen = false
+    }}
+  >
+    <form
+      class="card w-full max-w-md space-y-3 p-4"
+      onsubmit={(e) => {
+        e.preventDefault()
+        if (loginStatus.state === 'loaded' && !loginUserEmail) continueLogin()
+      }}
+    >
+      <div class="text-lg font-semibold text-surface-50">Login</div>
+
+      {#if loginStatus.state === 'loading'}
+        <div class="text-sm text-surface-200">Checking session…</div>
+      {:else if loginUserEmail}
+        <div class="text-sm text-surface-200">
+          You are already signed in as <span class="font-semibold">{loginUserEmail}</span>.
+        </div>
+      {:else}
+        <div class="text-sm text-surface-200">Sign in with GitHub via WorkOS AuthKit.</div>
+      {/if}
+
+      {#if loginStatus.state === 'error'}
+        <div class="text-sm text-error-300">Error: {loginStatus.message ?? 'Unknown error'}</div>
+      {/if}
+
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn btn-sm variant-ghost-surface" onclick={() => (loginOpen = false)}>
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn btn-sm variant-filled"
+          disabled={loginStatus.state !== 'loaded' || loginUserEmail != null}
+        >
+          Continue with GitHub
+        </button>
+      </div>
+    </form>
   </div>
 {/if}

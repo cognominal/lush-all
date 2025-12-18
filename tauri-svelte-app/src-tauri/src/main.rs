@@ -87,8 +87,12 @@ fn main() {
       let handle = app.handle();
 
       let about = MenuItem::with_id(handle, "lush.about", "About", true, None::<&str>)?;
+      let login = MenuItem::with_id(handle, "lush.login", "Login", true, None::<&str>)?;
 
-      let lush = SubmenuBuilder::new(handle, "lush").item(&about).build()?;
+      let lush = SubmenuBuilder::new(handle, "lush")
+        .item(&login)
+        .item(&about)
+        .build()?;
       let menu = MenuBuilder::new(handle).item(&lush).build()?;
       app.set_menu(menu)?;
 
@@ -116,6 +120,14 @@ fn main() {
           }
         } else {
           let _ = app.emit("lush:about", message);
+        }
+      } else if event.id() == "lush.login" {
+        if let Some(window) = app.get_webview_window("main") {
+          let _ = window.eval(
+            "window.dispatchEvent(new CustomEvent('lush:menu-action', { detail: { action: 'login' } }));",
+          );
+        } else {
+          let _ = app.emit("lush:menu-action", serde_json::json!({ "action": "login" }));
         }
       }
     })

@@ -133,6 +133,18 @@ Code: `svelte-app/src/routes/logout/+server.ts`
 
 ## Using auth in the app
 
+## Login UI
+
+The app exposes a menu action `login` which opens a small modal (form) with a “Continue with GitHub” button.
+
+- Web menu: `svelte-app/src/lib/logic/menu.ts:1` (submenu `lush → Login`)
+- Native Tauri menu: `tauri-svelte-app/src-tauri/src/main.rs:1` (submenu `lush → Login`)
+- Modal UI and action handler: `svelte-app/src/routes/+layout.svelte:1`
+
+The modal checks `GET /api/me` to see whether the user is already authenticated; if not, it navigates to:
+
+- `/login?returnTo=<current URL>`
+
 ### Read the current user (client side)
 
 Because `svelte-app/src/routes/+layout.ts` sets `ssr = false`, pages are rendered client-side.

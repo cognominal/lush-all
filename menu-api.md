@@ -38,6 +38,8 @@ Example (Tauri):
 ## Current action IDs
 
 - `about`: open the About dialog
+- `login`: open the login modal (UI action), which then redirects to `/login`
+- `logout`: reserved for later (will clear session + redirect through WorkOS logout)
 - `open-yaml-file`: open a YAML file (payload fields reserved for later)
 
 ## Current wiring
@@ -45,4 +47,3 @@ Example (Tauri):
 - Web menu bar UI: `svelte-app/src/lib/components/SvelteDevMenuBar.svelte` emits `lush:menu-action`
 - App listener: `svelte-app/src/routes/+layout.svelte` listens for `lush:menu-action` and performs the action
 - Legacy: `lush:about` is still listened to (for existing Tauri wiring)
-

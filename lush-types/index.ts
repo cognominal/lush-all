@@ -135,6 +135,8 @@ export function stringToTokenMultiLine(input: string): TokenMultiLine {
 
 export type MenuActionId =
   | 'about'
+  | 'login'
+  | 'logout'
   | 'open-yaml-file'
 
 export type KeyModifier = 'Alt' | 'Control' | 'Meta' | 'Shift'
@@ -173,6 +175,12 @@ export type MenuBarSpec = {
 export type MenuActionEventDetail =
   | {
       action: 'about'
+    }
+  | {
+      action: 'login'
+    }
+  | {
+      action: 'logout'
     }
   | {
       action: 'open-yaml-file'
