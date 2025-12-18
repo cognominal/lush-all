@@ -4,11 +4,7 @@
   let aboutOpen = false
   let aboutMessage = 'Lush app (early stage)'
 
-  let menuOpen = false
-  let menuRoot: HTMLElement | null = null
-
   function openAbout() {
-    menuOpen = false
     aboutMessage = 'Lush app (early stage)'
     aboutOpen = true
   }
@@ -36,11 +32,13 @@
   const tauriEventApi = getTauriEventApi()
   const isTauri = tauriEventApi != null
 
+  import SvelteDevMenuBar from '$lib/components/SvelteDevMenuBar.svelte'
+  import { LUSH_MENU_BAR } from '$lib/logic/menu'
   import { onDestroy, onMount } from 'svelte'
 
   let unlisten: Unlisten | null = null
-  let teardownMenuGuards: (() => void) | null = null
   let teardownDomAbout: (() => void) | null = null
+  let teardownDomMenuAction: (() => void) | null = null
   onMount(async () => {
     const onDomAbout = (e: Event) => {
       const ce = e as CustomEvent<unknown>
@@ -50,6 +48,20 @@
     window.addEventListener('lush:about', onDomAbout as EventListener)
     teardownDomAbout = () => {
       window.removeEventListener('lush:about', onDomAbout as EventListener)
+    }
+
+    const onDomMenuAction = (e: Event) => {
+      const ce = e as CustomEvent<unknown>
+      const detail = ce.detail
+      if (!detail || typeof detail !== 'object') return
+      const action = (detail as { action?: unknown }).action
+      if (action === 'about') {
+        openAbout()
+      }
+    }
+    window.addEventListener('lush:menu-action', onDomMenuAction as EventListener)
+    teardownDomMenuAction = () => {
+      window.removeEventListener('lush:menu-action', onDomMenuAction as EventListener)
     }
 
     if (!tauriEventApi) return
@@ -62,78 +74,16 @@
   onDestroy(() => {
     unlisten?.()
     unlisten = null
-    teardownMenuGuards?.()
-    teardownMenuGuards = null
     teardownDomAbout?.()
     teardownDomAbout = null
+    teardownDomMenuAction?.()
+    teardownDomMenuAction = null
   })
-
-  function installMenuGuards() {
-    if (teardownMenuGuards) return
-
-    const onPointerDown = (e: Event) => {
-      if (!menuOpen) return
-      const target = e.target
-      if (!(target instanceof Node)) return
-      if (menuRoot && menuRoot.contains(target)) return
-      menuOpen = false
-    }
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (aboutOpen) {
-        aboutOpen = false
-        return
-      }
-      if (menuOpen) menuOpen = false
-    }
-
-    document.addEventListener('pointerdown', onPointerDown, true)
-    window.addEventListener('keydown', onKeyDown)
-
-    teardownMenuGuards = () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }
-
-  $: if (!isTauri) installMenuGuards()
 </script>
 
 <div class="flex min-h-screen w-full flex-col">
   {#if !isTauri}
-    <div class="sticky top-0 z-50 border-b border-surface-500/20 bg-surface-900/60 backdrop-blur">
-      <div class="flex w-full items-center gap-2 px-4 py-2">
-        <div class="relative" bind:this={menuRoot}>
-          <button
-            type="button"
-            class="btn btn-sm variant-ghost-surface"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onclick={() => (menuOpen = !menuOpen)}
-          >
-            lush
-          </button>
-          {#if menuOpen}
-            <div
-              class="card absolute left-0 mt-2 w-44 overflow-hidden border border-surface-500/20 bg-surface-900/90 p-1 shadow-xl"
-              role="menu"
-              aria-label="lush menu"
-            >
-              <button
-                type="button"
-                class="btn btn-sm variant-ghost-surface w-full justify-start"
-                role="menuitem"
-                onclick={openAbout}
-              >
-                About
-              </button>
-            </div>
-          {/if}
-        </div>
-        <div class="flex-1"></div>
-      </div>
-    </div>
+    <SvelteDevMenuBar spec={LUSH_MENU_BAR} homeLabel="lush" />
   {/if}
 
   <div class="flex-1 min-h-0 w-full">

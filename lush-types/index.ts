@@ -132,3 +132,50 @@ export function stringToTokenMultiLine(input: string): TokenMultiLine {
   if (typeof input !== 'string' || input.length === 0) return []
   return input.split(/\r?\n/).map(tokenizeLine)
 }
+
+export type MenuActionId =
+  | 'about'
+  | 'open-yaml-file'
+
+export type KeyModifier = 'Alt' | 'Control' | 'Meta' | 'Shift'
+export type MenuAccelerator = {
+  key: string
+  modifiers?: readonly KeyModifier[]
+}
+
+export type MenuItem =
+  | {
+      kind: 'action'
+      id: string
+      label: string
+      action: MenuActionId
+      accelerator?: MenuAccelerator
+      disabled?: boolean
+    }
+  | {
+      kind: 'separator'
+      id: string
+    }
+  | {
+      kind: 'submenu'
+      id: string
+      label: string
+      items: readonly MenuItem[]
+      disabled?: boolean
+    }
+
+export type MenuMenu = Extract<MenuItem, { kind: 'submenu' }>
+
+export type MenuBarSpec = {
+  menus: readonly MenuMenu[]
+}
+
+export type MenuActionEventDetail =
+  | {
+      action: 'about'
+    }
+  | {
+      action: 'open-yaml-file'
+      path?: string
+      content?: string
+    }
