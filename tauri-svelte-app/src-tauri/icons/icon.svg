@@ -7,8 +7,11 @@
   aria-label="lush icon"
 >
   <title>lush</title>
-  <rect width="1024" height="1024" fill="#1d4ed8" />
-  <g fill="#ffffff">
+  <rect width="1024" height="1024" rx="224" ry="224" fill="#1d4ed8" />
+  <g
+    fill="#ffffff"
+    transform="translate(512 512) scale(0.84) translate(-512 -512)"
+  >
     <text
       x="420"
       y="560"

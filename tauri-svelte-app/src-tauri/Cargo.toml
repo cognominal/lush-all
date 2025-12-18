@@ -1,5 +1,5 @@
 [package]
-name = "tauri-svelte-app"
+name = "taulush"
 version = "0.1.0"
 description = "Tauri wrapper for the lush SvelteKit app"
 authors = ["you"]

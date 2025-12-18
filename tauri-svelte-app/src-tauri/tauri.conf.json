@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "lush",
+  "productName": "taulush",
   "version": "0.1.0",
-  "identifier": "com.lush.tauri_svelte_app",
+  "identifier": "com.lush.taulush",
   "build": {
     "beforeDevCommand": "bun run --cwd ../svelte-app dev -- --host 127.0.0.1 --port 5173",
     "devUrl": "http://127.0.0.1:5173",
     "beforeBuildCommand": "bun run --cwd ../svelte-app build:tauri",
-    "frontendDist": "../svelte-app/build"
+    "frontendDist": "../../svelte-app/build"
   },
   "app": {
     "withGlobalTauri": true,
@@ -26,6 +26,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png", "icons/icon.svg"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }

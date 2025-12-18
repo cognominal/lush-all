@@ -6,17 +6,17 @@ type Command = 'dev' | 'build'
 
 type ParsedArgs =
   | { command: 'dev' }
-  | { command: 'build'; target?: string }
+  | { command: 'build'; target?: string; bundles?: string }
   | { command: 'help' }
 
 function usage(): string {
   return [
     'Usage:',
     '  bun scripts/tauri.ts dev',
-    '  bun scripts/tauri.ts build [--target <triple>]',
+    '  bun scripts/tauri.ts build [--target <triple>] [--bundles <list>]',
     '',
     'Guards:',
-    '  By default, build refuses to run if --target does not match this machine’s OS/arch.',
+    '  By default, build refuses to run if an explicit --target does not match this machine’s OS/arch.',
     '  Override by setting LUSH_ALLOW_CROSS=1.',
     ''
   ].join('\n')
@@ -36,6 +36,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   let target: string | undefined
+  let bundles: string | undefined
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]
     if (arg === '--target') {
@@ -45,10 +46,17 @@ function parseArgs(argv: string[]): ParsedArgs {
       i += 1
       continue
     }
+    if (arg === '--bundles') {
+      const value = rest[i + 1]
+      if (!value) throw new Error(`Missing value for --bundles.\n\n${usage()}`)
+      bundles = value
+      i += 1
+      continue
+    }
     throw new Error(`Unknown arg: ${arg}\n\n${usage()}`)
   }
 
-  return { command: 'build', target }
+  return { command: 'build', target, bundles }
 }
 
 function expectedTargetForCurrentMachine(): string | null {
@@ -93,27 +101,32 @@ function main(): never {
 
   // Note: `cargo tauri` does not accept `--manifest-path`; we rely on `cwd` instead.
   const baseArgs = ['tauri', parsed.command]
-  const expectedTarget = expectedTargetForCurrentMachine()
 
   if (parsed.command === 'build') {
-    if (!expectedTarget) {
-      throw new Error(
-        `Unsupported platform/arch for guarded build: ${process.platform}/${process.arch}`
-      )
+    const allowCross = process.env.LUSH_ALLOW_CROSS === '1'
+    if (parsed.target) {
+      const expectedTarget = expectedTargetForCurrentMachine()
+      if (!expectedTarget) {
+        throw new Error(
+          `Unsupported platform/arch for guarded build: ${process.platform}/${process.arch}`
+        )
+      }
+
+      if (!allowCross && parsed.target !== expectedTarget) {
+        throw new Error(
+          [
+            `Refusing to build for ${parsed.target} on ${process.platform}/${process.arch}.`,
+            `Expected target: ${expectedTarget}`,
+            'Set LUSH_ALLOW_CROSS=1 to override.'
+          ].join('\n')
+        )
+      }
+      baseArgs.push('--target', parsed.target)
     }
 
-    const allowCross = process.env.LUSH_ALLOW_CROSS === '1'
-    const target = parsed.target ?? expectedTarget
-    if (!allowCross && target !== expectedTarget) {
-      throw new Error(
-        [
-          `Refusing to build for ${target} on ${process.platform}/${process.arch}.`,
-          `Expected target: ${expectedTarget}`,
-          'Set LUSH_ALLOW_CROSS=1 to override.'
-        ].join('\n')
-      )
+    if (parsed.bundles) {
+      baseArgs.push('--bundles', parsed.bundles)
     }
-    baseArgs.push('--target', target)
   }
 
   const res = spawnSync('cargo', baseArgs, {
