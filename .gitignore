@@ -20,3 +20,7 @@ bun-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Local secrets (do not commit)
+workos-keys.txt
+svelte-app/workos-keys.txt
