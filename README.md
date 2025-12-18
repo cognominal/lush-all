@@ -39,6 +39,11 @@ See [svelte-app/app.md](svelte-app/app.md])
 
 ## tauri app
 
+## Auth docs
+
+- `auth-workos-github.md` — WorkOS AuthKit + GitHub login (SvelteKit + Tauri dev)
+- `tauri-auth-server.md` — “no limitation” Tauri build that bundles a local server (`bun run build:tauri:auth`)
+
 ## Monorepo Layout
 
 - `lush-types` is a local npm package to define types used everywhere else

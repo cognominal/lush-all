@@ -9,6 +9,7 @@
     "dev": "bun run --cwd svelte-app dev",
     "dev:tauri": "bun scripts/tauri.ts dev",
     "build:tauri": "bun scripts/tauri.ts build",
+    "build:tauri:auth": "bun scripts/tauri-auth.ts build",
     "build:tauri:mac:arm64": "bun scripts/tauri.ts build --target aarch64-apple-darwin",
     "build:tauri:mac:x64": "bun scripts/tauri.ts build --target x86_64-apple-darwin",
     "build:tauri:win:x64": "bun scripts/tauri.ts build --target x86_64-pc-windows-msvc",

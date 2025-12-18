@@ -11,6 +11,11 @@ Important limitation:
 
 - The current Tauri **production** build uses a **static** SvelteKit build (`build:tauri`), so there is no server process to perform the OAuth code exchange. This means **AuthKit login will not work in the bundled Tauri app** until we introduce a server (remote or embedded) for the callback/session endpoints.
 
+Workaround implemented:
+
+- Use `bun run build:tauri:auth` to build a Tauri bundle that includes an **embedded local app server** (SvelteKit adapter-node) and starts it on `http://127.0.0.1:3210` when the app launches.
+- This requires `node` to be available on the machine running the app.
+
 ## What gets added
 
 ### Routes
@@ -42,6 +47,8 @@ In the WorkOS Dashboard:
 2. Enable **GitHub** as a **Social Login** provider
 3. Add a **redirect URI** for local dev:
    - `http://localhost:5173/auth/callback`
+4. Add a **redirect URI** for the packaged Tauri bundle (AuthKit in production):
+   - `http://127.0.0.1:3210/auth/callback`
 
 ### 2) Local keys file (recommended)
 
