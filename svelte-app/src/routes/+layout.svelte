@@ -100,43 +100,45 @@
   $: if (!isTauri) installMenuGuards()
 </script>
 
-{#if !isTauri}
-  <div class="sticky top-0 z-50 border-b border-surface-500/20 bg-surface-900/60 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2">
-      <div class="relative" bind:this={menuRoot}>
-        <button
-          type="button"
-          class="btn btn-sm variant-ghost-surface"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          onclick={() => (menuOpen = !menuOpen)}
-        >
-          lush
-        </button>
-        {#if menuOpen}
-          <div
-            class="card absolute left-0 mt-2 w-44 overflow-hidden border border-surface-500/20 bg-surface-900/90 p-1 shadow-xl"
-            role="menu"
-            aria-label="lush menu"
+<div class="flex min-h-screen w-full flex-col">
+  {#if !isTauri}
+    <div class="sticky top-0 z-50 border-b border-surface-500/20 bg-surface-900/60 backdrop-blur">
+      <div class="flex w-full items-center gap-2 px-4 py-2">
+        <div class="relative" bind:this={menuRoot}>
+          <button
+            type="button"
+            class="btn btn-sm variant-ghost-surface"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onclick={() => (menuOpen = !menuOpen)}
           >
-            <button
-              type="button"
-              class="btn btn-sm variant-ghost-surface w-full justify-start"
-              role="menuitem"
-              onclick={openAbout}
+            lush
+          </button>
+          {#if menuOpen}
+            <div
+              class="card absolute left-0 mt-2 w-44 overflow-hidden border border-surface-500/20 bg-surface-900/90 p-1 shadow-xl"
+              role="menu"
+              aria-label="lush menu"
             >
-              About
-            </button>
-          </div>
-        {/if}
+              <button
+                type="button"
+                class="btn btn-sm variant-ghost-surface w-full justify-start"
+                role="menuitem"
+                onclick={openAbout}
+              >
+                About
+              </button>
+            </div>
+          {/if}
+        </div>
+        <div class="flex-1"></div>
       </div>
-      <div class="flex-1"></div>
     </div>
-  </div>
-{/if}
+  {/if}
 
-<div class="mx-auto max-w-6xl p-6">
-  <slot />
+  <div class="flex-1 min-h-0 w-full">
+    <slot />
+  </div>
 </div>
 
 {#if aboutOpen}

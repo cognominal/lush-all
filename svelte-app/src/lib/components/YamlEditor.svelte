@@ -97,7 +97,7 @@
             }
           }),
           EditorView.theme({
-            '&': { height: '420px' },
+            '&': { height: '100%' },
             '.cm-scroller': { overflow: 'auto' }
           })
         ]
@@ -158,4 +158,4 @@
   })
 </script>
 
-<div class="border-b border-surface-500/20" bind:this={host}></div>
+<div class="h-full" bind:this={host}></div>
