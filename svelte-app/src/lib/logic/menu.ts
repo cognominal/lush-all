@@ -5,25 +5,13 @@ export const LUSH_MENU_BAR: MenuBarSpec = {
     {
       kind: 'submenu',
       id: 'lush',
-      label: 'lush',
+      label: 'Lush',
       items: [
         {
           kind: 'action',
           id: 'login',
           label: 'Login',
           action: 'login'
-        },
-        {
-          kind: 'action',
-          id: 'editor',
-          label: 'editor',
-          action: 'open-editor'
-        },
-        {
-          kind: 'action',
-          id: 'open-yaml-file',
-          label: 'open yaml file...',
-          action: 'open-yaml-file'
         },
         {
           kind: 'action',
@@ -40,6 +28,25 @@ export const LUSH_MENU_BAR: MenuBarSpec = {
           id: 'about',
           label: 'About Lush',
           action: 'about'
+        }
+      ]
+    },
+    {
+      kind: 'submenu',
+      id: 'file',
+      label: 'File',
+      items: [
+        {
+          kind: 'action',
+          id: 'open-yaml-file',
+          label: 'open yaml file...',
+          action: 'open-yaml-file'
+        },
+        {
+          kind: 'action',
+          id: 'editor',
+          label: 'editor',
+          action: 'open-editor'
         }
       ]
     },

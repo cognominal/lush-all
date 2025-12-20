@@ -4,6 +4,7 @@ export type Command = {
   id: string
   label: string
   group?: string
+  notInPalette?: boolean
   handler: () => void
 }
 
@@ -34,9 +35,10 @@ export function listCommands(): Command[] {
 }
 
 export function filterCommands(commands: readonly Command[], query: string): Command[] {
+  const visible = commands.filter((command) => !command.notInPalette)
   const needle = query.trim().toLowerCase()
-  if (!needle) return [...commands]
-  return commands.filter((command) => command.label.toLowerCase().includes(needle))
+  if (!needle) return [...visible]
+  return visible.filter((command) => command.label.toLowerCase().includes(needle))
 }
 
 export const commandsStore = { subscribe }

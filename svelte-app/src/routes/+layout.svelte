@@ -141,6 +141,7 @@
       id: 'open-yaml-sample',
       label: 'Open yaml_sample',
       group: 'Lush',
+      notInPalette: true,
       handler: () => {
         setYamlFileContent(null)
         void goto('/')
