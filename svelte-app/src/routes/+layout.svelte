@@ -82,6 +82,7 @@
   import { goto } from '$app/navigation'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import { registerCommand, type Command } from '$lib/logic/commands'
+  import { setYamlFileContent } from '$lib/logic/yamlFile'
 
   let unlisten: Unlisten | null = null
   let teardownDomAbout: (() => void) | null = null
@@ -102,7 +103,31 @@
     closePalette()
   }
 
+  async function openYamlFilePicker() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.yaml,.yml,text/yaml,application/x-yaml'
+    const file = await new Promise<File | null>((resolve) => {
+      input.onchange = () => {
+        resolve(input.files?.[0] ?? null)
+      }
+      input.click()
+    })
+    if (!file) return
+    const text = await file.text()
+    setYamlFileContent(text)
+  }
+
   function registerMenuCommands() {
+    registerCommand({
+      id: 'open-yaml-file',
+      label: 'Open yaml file...',
+      group: 'Lush',
+      handler: () => {
+        void openYamlFilePicker()
+      }
+    })
+
     registerCommand({
       id: 'open-editor',
       label: 'Open editor',
@@ -117,6 +142,7 @@
       label: 'Open yaml_sample',
       group: 'Lush',
       handler: () => {
+        setYamlFileContent(null)
         void goto('/')
       }
     })
@@ -175,7 +201,10 @@
         void openLogin()
       } else if (action === 'open-editor') {
         void goto('/editor')
+      } else if (action === 'open-yaml-file') {
+        void openYamlFilePicker()
       } else if (action === 'open-yaml-sample') {
+        setYamlFileContent(null)
         void goto('/')
       }
     }

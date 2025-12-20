@@ -168,3 +168,8 @@ export type MenuActionEventDetail =
   | {
       action: 'open-yaml-sample'
     }
+  | {
+      action: 'open-yaml-file'
+      path?: string
+      content?: string
+    }

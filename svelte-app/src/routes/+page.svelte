@@ -5,6 +5,7 @@
   import YamlEditor from '$lib/components/YamlEditor.svelte'
   import { SplitPane } from '@rich_harris/svelte-split-pane'
   import { YAML_SAMPLE } from '$lib/logic/yamlSample'
+  import { yamlFileContent } from '$lib/logic/yamlFile'
   import {
     analyzeYaml,
     breadcrumbsAtOffset,
@@ -35,6 +36,9 @@
   $: paneOffset = hoverRange?.from ?? cursorOffset
   $: selectedTok = selectedTokenInputAtOffset(analysis, paneOffset)
   $: selectedTokYaml = tokenInputAsYaml(selectedTok)
+  $: if ($yamlFileContent && $yamlFileContent !== yamlText) {
+    scheduleParse($yamlFileContent)
+  }
 </script>
 
 <div class="flex h-full min-h-0 flex-col gap-4 overflow-hidden p-6 text-surface-50">

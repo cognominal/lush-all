@@ -21,6 +21,12 @@ export const LUSH_MENU_BAR: MenuBarSpec = {
         },
         {
           kind: 'action',
+          id: 'open-yaml-file',
+          label: 'open yaml file...',
+          action: 'open-yaml-file'
+        },
+        {
+          kind: 'action',
           id: 'yaml-sample',
           label: 'yaml_sample',
           action: 'open-yaml-sample'
