@@ -88,6 +88,7 @@
   let teardownDomAbout: (() => void) | null = null
   let teardownDomMenuAction: (() => void) | null = null
   let teardownPaletteHotkey: (() => void) | null = null
+  let teardownEscapeClose: (() => void) | null = null
   let paletteOpen = false
 
   function openPalette() {
@@ -178,9 +179,21 @@
       window.removeEventListener('keydown', onKeyDown)
     }
   }
+
+  function installEscapeClose() {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (aboutOpen) aboutOpen = false
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }
   onMount(async () => {
     registerMenuCommands()
     teardownPaletteHotkey = installPaletteHotkey()
+    teardownEscapeClose = installEscapeClose()
     const onDomAbout = (e: Event) => {
       const ce = e as CustomEvent<unknown>
       aboutMessage = typeof ce.detail === 'string' ? ce.detail : 'Lush app (early stage)'
@@ -230,6 +243,8 @@
     teardownDomMenuAction = null
     teardownPaletteHotkey?.()
     teardownPaletteHotkey = null
+    teardownEscapeClose?.()
+    teardownEscapeClose = null
   })
 </script>
 
