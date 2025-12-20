@@ -11,7 +11,8 @@ const config = {
     // so TAURI_SERVER=1 switches back to adapter-node.
     adapter: isTauri && !isTauriServer ? adapterStatic({ fallback: '200.html' }) : adapter(),
     alias: {
-      '@lush/yaml': '../yaml/src/index.ts'
+      '@lush/yaml': '../yaml/src/index.ts',
+      '@lush/structural': '../svelte-codemirror/src'
     }
   }
 }

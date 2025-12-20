@@ -28,6 +28,12 @@
 - If changing `svelte-app/`: `bun run --cwd svelte-app check` and `bun run --cwd svelte-app build`
 - If changing `yaml/`: prefer `bun run --cwd yaml test:vitest`; keep `bun run --cwd yaml build` and `bun run --cwd yaml lint` clean
 
+
+## Tauri and non Tauri
+
+The app has two versions. One standalonw which uses Tauri and a non Tauri one.
+The Tauri one uses rust API to access the system menu bar, the non Tauri one 
+
 ## Current task
 
-The current task is marked as THIS THE CURRENT TASK in the root `plan.md` or a `plan.md` below
+The current task is marked as "THIS THE CURRENT TASK" in the root `plan.md` or a `plan.md` below

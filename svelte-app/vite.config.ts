@@ -13,6 +13,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@lush/yaml': path.resolve(here, '../yaml/src/index.ts'),
+      '@lush/structural': path.resolve(here, '../svelte-codemirror/src'),
       process: 'process/browser',
       buffer: 'buffer'
     }

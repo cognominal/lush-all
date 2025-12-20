@@ -1,0 +1,110 @@
+import { parse } from '../../yaml/src/index.ts'
+
+export type HighlightMap = Map<string, string>
+
+export type HighlightRegistry = {
+  classFor: (kind: string, type: string) => string | null
+  themeSpec: Record<string, Record<string, string>>
+}
+
+const colorMap: Record<string, string> = {
+  blue: 'rgb(59, 130, 246)',
+  red: 'rgb(239, 68, 68)',
+  green: 'rgb(34, 197, 94)',
+  yellow: 'rgb(234, 179, 8)',
+  gray: 'rgb(156, 163, 175)',
+  grey: 'rgb(156, 163, 175)',
+  cyan: 'rgb(34, 211, 238)',
+  magenta: 'rgb(217, 70, 239)',
+  white: 'rgb(255, 255, 255)',
+  black: 'rgb(17, 24, 39)'
+}
+
+function normalizeKey(key: string): string {
+  return key.trim().toLowerCase()
+}
+
+export function parseHighlightYaml(text: string): HighlightMap {
+  if (!text || !text.trim()) return new Map()
+  try {
+    const parsed: unknown = parse(text)
+    if (!parsed || typeof parsed !== 'object') return new Map()
+    const entries = Object.entries(parsed as Record<string, unknown>)
+    const map = new Map<string, string>()
+    for (const [key, value] of entries) {
+      if (typeof value === 'string') {
+        map.set(normalizeKey(key), value)
+      }
+    }
+    return map
+  } catch {
+    return new Map()
+  }
+}
+
+function styleForChain(chain: string): Record<string, string> {
+  const style: Record<string, string> = {}
+  const segments = chain
+    .split('.')
+    .map((segment) => segment.trim().toLowerCase())
+    .filter(Boolean)
+
+  for (const segment of segments) {
+    if (segment === 'bold') {
+      style.fontWeight = '700'
+      continue
+    }
+    if (segment === 'italic') {
+      style.fontStyle = 'italic'
+      continue
+    }
+    if (segment === 'underline') {
+      style.textDecoration = 'underline'
+      continue
+    }
+    const color = colorMap[segment]
+    if (color) style.color = color
+  }
+
+  return style
+}
+
+export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
+  const classByKey = new Map<string, string>()
+  const classByChain = new Map<string, string>()
+  const themeSpec: Record<string, Record<string, string>> = {}
+  let classIdx = 0
+
+  function classForChain(chain: string): string {
+    const existing = classByChain.get(chain)
+    if (existing) return existing
+    const name = `cm-structural-hl-${classIdx}`
+    classIdx += 1
+    classByChain.set(chain, name)
+    themeSpec[`.${name}`] = styleForChain(chain)
+    return name
+  }
+
+  for (const [key, chain] of map.entries()) {
+    const normalizedKey = normalizeKey(key)
+    const className = classForChain(chain)
+    classByKey.set(normalizedKey, className)
+  }
+
+  function classFor(kind: string, type: string): string | null {
+    const kindKey = kind.toLowerCase()
+    const typeKey = type.toLowerCase()
+    const exact = `${kindKey}.${typeKey}`
+    const kindOnly = `${kindKey}.*`
+    const typeOnly = `*.${typeKey}`
+
+    return (
+      classByKey.get(exact) ??
+      classByKey.get(kindOnly) ??
+      classByKey.get(typeOnly) ??
+      null
+    )
+  }
+
+  return { classFor, themeSpec }
+}

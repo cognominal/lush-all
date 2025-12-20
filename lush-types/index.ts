@@ -35,7 +35,13 @@ export const SPACE_TYPE = 'Space'
 export const NAKED_STRING_TYPE = 'NakedString'
 
 export type SyntheticTokenType = typeof SPACE_TYPE | typeof NAKED_STRING_TYPE
-export type TokenTypeName = YamlTokenType | SyntheticTokenType
+export type JsTokenType =
+  | 'keyword'
+  | 'variable'
+  | 'operator'
+  | 'punctuation'
+  | 'number'
+export type TokenTypeName = YamlTokenType | SyntheticTokenType | JsTokenType
 
 export type CompletionTokenKind =
   | 'Folder'
@@ -76,7 +82,7 @@ type TypeScriptSymbolCompletionMetadata =
 
 
 // Distinguish kinds so we can tell YAML tokens apart from future kinds.
-export type LushTokenKind = 'Lush' | 'YAML' | 'jq'
+export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js'
 
 export type CompletionTokenMetadata =
   | FolderCompletionMetadata

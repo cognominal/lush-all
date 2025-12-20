@@ -1,5 +1,6 @@
+# Palette a la vscode
 
-Creata a "file" menu with en antry
+Create a "file" menu with en antry
 
 Create a palette system like the one in vscode.
 The palette displays the registered commands and the user selects the one to

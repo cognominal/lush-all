@@ -1,0 +1,421 @@
+<script lang="ts">
+  import { onDestroy, onMount } from 'svelte'
+  import {
+    EditorSelection,
+    EditorState,
+    StateEffect,
+    StateField,
+    type Range
+  } from '@codemirror/state'
+  import {
+    Decoration,
+    EditorView,
+    WidgetType,
+    type DecorationSet
+  } from '@codemirror/view'
+  import {
+    createHighlightRegistry,
+    createSampleJsTree,
+    descendPath,
+    findFirstInputPath,
+    findNextInputPath,
+    findPrevInputPath,
+    getTokenByPath,
+    isInputToken,
+    parseHighlightYaml,
+    projectTree,
+    serializePath,
+    type InputToken,
+    type StructuralEditorState,
+    type Span
+  } from '@lush/structural'
+  import highlightRaw from '@lush/structural/highlight.yaml?raw'
+
+  let host: HTMLDivElement
+  let view: EditorView | null = null
+  let inputTokenPaths: number[][] = []
+
+  const highlightRegistry = createHighlightRegistry(parseHighlightYaml(highlightRaw))
+
+  class FocusWidget extends WidgetType {
+    toDOM() {
+      const span = document.createElement('span')
+      span.className = 'cm-structural-empty'
+      span.textContent = ' '
+      return span
+    }
+
+    ignoreEvent() {
+      return true
+    }
+  }
+
+  const focusWidget = new FocusWidget()
+
+  const setDecorations = StateEffect.define<DecorationSet>()
+  const decorationsField = StateField.define<DecorationSet>({
+    create() {
+      return Decoration.none
+    },
+    update(deco, tr) {
+      for (const effect of tr.effects) {
+        if (effect.is(setDecorations)) return effect.value
+      }
+      return deco.map(tr.changes)
+    },
+    provide: (field) => EditorView.decorations.from(field)
+  })
+
+  function createInitialState(): StructuralEditorState {
+    const root = createSampleJsTree()
+    const projection = projectTree(root)
+    inputTokenPaths = projection.inputTokenPaths
+
+    return {
+      mode: 'normal',
+      root,
+      currentPath: [],
+      currentInputPath: inputTokenPaths[0] ?? [],
+      cursorOffset: 0,
+      projectionText: projection.text,
+      spansByPath: projection.spansByPath
+    }
+  }
+
+  let editorState: StructuralEditorState = createInitialState()
+
+  function rebuildProjection(nextRoot: InputToken, base: StructuralEditorState): StructuralEditorState {
+    const projection = projectTree(nextRoot)
+    inputTokenPaths = projection.inputTokenPaths
+    return {
+      ...base,
+      root: nextRoot,
+      projectionText: projection.text,
+      spansByPath: projection.spansByPath
+    }
+  }
+
+  function getSpan(path: number[]): Span | undefined {
+    return editorState.spansByPath.get(serializePath(path))
+  }
+
+  function getTextRange(span: Span | undefined): { from: number; to: number } {
+    if (!span) return { from: 0, to: 0 }
+    return {
+      from: span.textFrom ?? span.from,
+      to: span.textTo ?? span.to
+    }
+  }
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(value, max))
+  }
+
+  function buildSelection(): EditorSelection {
+    if (editorState.mode === 'insert') {
+      const span = getSpan(editorState.currentInputPath)
+      const range = getTextRange(span)
+      const caret = clamp(range.from + editorState.cursorOffset, range.from, range.to)
+      return EditorSelection.single(caret)
+    }
+
+    const span = getSpan(editorState.currentPath)
+    if (!span) return EditorSelection.single(0)
+    return EditorSelection.single(span.from, span.to)
+  }
+
+  function buildDecorations(): DecorationSet {
+    const decorations: Array<Range<Decoration>> = []
+
+    const visit = (token: InputToken, path: number[]) => {
+      const span = getSpan(path)
+      if (span) {
+        const className = highlightRegistry.classFor(token.kind, token.type)
+        if (className && span.from < span.to) {
+          decorations.push(Decoration.mark({ class: className }).range(span.from, span.to))
+        }
+      }
+      token.subTokens?.forEach((child: InputToken, idx: number) =>
+        visit(child, [...path, idx])
+      )
+    }
+
+    visit(editorState.root, [])
+
+    if (editorState.mode === 'normal') {
+      const focusSpan = getSpan(editorState.currentPath)
+      if (focusSpan) {
+        if (focusSpan.from === focusSpan.to) {
+          decorations.push(
+            Decoration.widget({ widget: focusWidget, side: 1 }).range(focusSpan.from)
+          )
+        } else {
+          decorations.push(
+            Decoration.mark({ class: 'cm-structural-focus' }).range(
+              focusSpan.from,
+              focusSpan.to
+            )
+          )
+        }
+      }
+    }
+
+    return Decoration.set(decorations, true)
+  }
+
+  function syncView() {
+    if (!view) return
+    const currentDoc = view.state.doc.toString()
+    const effects = [setDecorations.of(buildDecorations())]
+    const selection = buildSelection()
+    const changes =
+      currentDoc === editorState.projectionText
+        ? undefined
+        : { from: 0, to: view.state.doc.length, insert: editorState.projectionText }
+
+    view.dispatch({ changes, selection, effects })
+  }
+
+  function setState(next: StructuralEditorState) {
+    editorState = next
+    syncView()
+  }
+
+  function enterInsertMode() {
+    const currentToken = getTokenByPath(editorState.root, editorState.currentPath)
+    const targetPath =
+      currentToken && isInputToken(currentToken)
+        ? editorState.currentPath
+        : findFirstInputPath(editorState.root, editorState.currentPath)
+    const token = getTokenByPath(editorState.root, targetPath)
+    const text = token?.text ?? ''
+
+    setState({
+      ...editorState,
+      mode: 'insert',
+      currentPath: targetPath,
+      currentInputPath: targetPath,
+      cursorOffset: text.length
+    })
+  }
+
+  function enterNormalMode() {
+    setState({
+      ...editorState,
+      mode: 'normal',
+      currentPath: editorState.currentInputPath
+    })
+  }
+
+  function focusInputPath(path: number[]) {
+    setState({
+      ...editorState,
+      currentPath: path,
+      currentInputPath: path
+    })
+  }
+
+  function descend() {
+    const nextPath = descendPath(editorState.root, editorState.currentPath)
+    if (serializePath(nextPath) === serializePath(editorState.currentPath)) return
+    setState({
+      ...editorState,
+      currentPath: nextPath
+    })
+  }
+
+  function moveToNextInput() {
+    const nextPath = findNextInputPath(inputTokenPaths, editorState.currentInputPath)
+    if (!nextPath) return
+    focusInputPath(nextPath)
+  }
+
+  function moveToPrevInput() {
+    const prevPath = findPrevInputPath(inputTokenPaths, editorState.currentInputPath)
+    if (!prevPath) return
+    focusInputPath(prevPath)
+  }
+
+  function updateTokenText(root: InputToken, path: number[], nextText: string): InputToken {
+    if (path.length === 0) {
+      return { ...root, text: nextText }
+    }
+    const [idx, ...rest] = path
+    const children = root.subTokens ?? []
+    const nextChildren = children.map((child: InputToken, childIdx: number) => {
+      if (childIdx !== idx) return child
+      return updateTokenText(child, rest, nextText)
+    })
+    return { ...root, subTokens: nextChildren }
+  }
+
+  function insertChar(char: string) {
+    const path = editorState.currentInputPath
+    const token = getTokenByPath(editorState.root, path)
+    if (!token) return
+    const text = token.text ?? ''
+    const offset = clamp(editorState.cursorOffset, 0, text.length)
+    const nextText = text.slice(0, offset) + char + text.slice(offset)
+    const nextRoot = updateTokenText(editorState.root, path, nextText)
+    const baseState: StructuralEditorState = {
+      ...editorState,
+      mode: 'insert',
+      currentPath: path,
+      currentInputPath: path,
+      cursorOffset: offset + char.length
+    }
+    setState(rebuildProjection(nextRoot, baseState))
+  }
+
+  function isPrintable(event: KeyboardEvent): boolean {
+    if (event.ctrlKey || event.metaKey || event.altKey) return false
+    if (event.key.length !== 1) return false
+    return true
+  }
+
+  function handleKey(event: KeyboardEvent): boolean {
+    if (editorState.mode === 'normal') {
+      if (event.key === 'i' && !event.shiftKey) {
+        enterInsertMode()
+        return true
+      }
+      if (event.key === 'Enter' && event.shiftKey) {
+        descend()
+        return true
+      }
+      if (event.key === 'Enter') {
+        descend()
+        return true
+      }
+      if (event.key === 'Tab') {
+        if (event.shiftKey) moveToPrevInput()
+        else moveToNextInput()
+        return true
+      }
+      if (event.key === 'Escape') return true
+      return true
+    }
+
+    if (editorState.mode === 'insert') {
+      if (event.key === 'Escape') {
+        enterNormalMode()
+        return true
+      }
+      if (event.key === 'Enter') return true
+      if (isPrintable(event)) {
+        insertChar(event.key)
+        return true
+      }
+      return true
+    }
+
+    return false
+  }
+
+  const updateListener = EditorView.updateListener.of((update) => {
+    if (!view) return
+    if (!update.selectionSet) return
+
+    if (editorState.mode === 'insert') {
+      const span = getSpan(editorState.currentInputPath)
+      const range = getTextRange(span)
+      const head = update.state.selection.main.head
+      const clamped = clamp(head, range.from, range.to)
+
+      if (clamped !== head) {
+        view.dispatch({ selection: { anchor: clamped } })
+      } else {
+        const nextOffset = clamped - range.from
+        if (nextOffset !== editorState.cursorOffset) {
+          editorState = { ...editorState, cursorOffset: nextOffset }
+        }
+      }
+      return
+    }
+
+    if (editorState.mode === 'normal') {
+      const span = getSpan(editorState.currentPath)
+      if (!span) return
+      const selection = update.state.selection.main
+      if (selection.from !== span.from || selection.to !== span.to) {
+        view.dispatch({ selection: { anchor: span.from, head: span.to } })
+      }
+    }
+  })
+
+  onMount(() => {
+    view = new EditorView({
+      parent: host,
+      state: EditorState.create({
+        doc: editorState.projectionText,
+        extensions: [
+          EditorState.allowMultipleSelections.of(false),
+          EditorView.editable.of(false),
+          EditorView.domEventHandlers({
+            keydown: (event) => {
+              const handled = handleKey(event)
+              if (handled) event.preventDefault()
+              return handled
+            }
+          }),
+          updateListener,
+          decorationsField,
+          EditorView.theme(highlightRegistry.themeSpec),
+          EditorView.theme({
+            '&': {
+              height: '100%',
+              fontFamily: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontSize: '14px',
+              backgroundColor: 'rgba(15, 23, 42, 0.7)',
+              color: 'rgb(226, 232, 240)'
+            },
+            '.cm-content': {
+              padding: '16px'
+            },
+            '.cm-scroller': {
+              overflow: 'auto'
+            },
+            '.cm-structural-focus': {
+              backgroundColor: 'rgba(56, 189, 248, 0.18)',
+              outline: '1px solid rgba(56, 189, 248, 0.6)',
+              borderRadius: '3px'
+            },
+            '.cm-structural-empty': {
+              display: 'inline-block',
+              width: '0.6ch',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              outline: '1px solid rgba(56, 189, 248, 0.6)',
+              borderRadius: '3px'
+            }
+          })
+        ]
+      })
+    })
+
+    syncView()
+  })
+
+  onDestroy(() => {
+    view?.destroy()
+    view = null
+  })
+</script>
+
+<div class="flex h-full flex-col gap-4 p-6">
+  <div class="flex items-baseline justify-between">
+    <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
+      Structural Editor
+    </div>
+    <div class="text-xs text-surface-400">
+      Mode: <span class="font-semibold text-surface-100">{editorState.mode}</span>
+    </div>
+  </div>
+
+  <div class="flex-1 rounded-xl border border-surface-700/60 bg-surface-900/70">
+    <div class="h-full min-h-[420px]" bind:this={host}></div>
+  </div>
+
+  <div class="text-xs text-surface-400">
+    Normal mode keys: i, Tab, Shift+Tab, Enter. Insert mode: Esc, printable characters.
+  </div>
+</div>
