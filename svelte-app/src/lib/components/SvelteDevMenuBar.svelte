@@ -4,6 +4,7 @@
 
   export let spec: MenuBarSpec
   export let homeLabel = 'lush'
+  export let showHome = true
 
   let openMenuId: string | null = null
   let root: HTMLElement | null = null
@@ -65,9 +66,11 @@
 </script>
 
 <nav class="sk-nav" aria-label="Primary" bind:this={root}>
-  <a class="home-link" href="/" aria-label={homeLabel} title={homeLabel}>
-    {homeLabel}
-  </a>
+  {#if showHome}
+    <a class="home-link" href="/" aria-label={homeLabel} title={homeLabel}>
+      {homeLabel}
+    </a>
+  {/if}
 
   <div class="menus">
     {#each spec.menus as maybeMenu (maybeMenu.id)}

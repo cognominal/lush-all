@@ -145,6 +145,7 @@ export type MenuActionId =
   | 'logout'
   | 'open-yaml-file'
   | 'open-editor'
+  | 'open-yaml-sample'
 
 export type KeyModifier = 'Alt' | 'Control' | 'Meta' | 'Shift'
 export type MenuAccelerator = {
@@ -191,6 +192,9 @@ export type MenuActionEventDetail =
     }
   | {
       action: 'open-editor'
+    }
+  | {
+      action: 'open-yaml-sample'
     }
   | {
       action: 'open-yaml-file'

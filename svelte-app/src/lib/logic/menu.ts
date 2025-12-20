@@ -20,6 +20,12 @@ export const LUSH_MENU_BAR: MenuBarSpec = {
           action: 'open-editor'
         },
         {
+          kind: 'action',
+          id: 'yaml-sample',
+          label: 'yaml_sample',
+          action: 'open-yaml-sample'
+        },
+        {
           kind: 'separator',
           id: 'sep-1'
         },

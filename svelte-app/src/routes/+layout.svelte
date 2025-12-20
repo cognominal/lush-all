@@ -106,6 +106,8 @@
         void openLogin()
       } else if (action === 'open-editor') {
         void goto('/editor')
+      } else if (action === 'open-yaml-sample') {
+        void goto('/')
       }
     }
     window.addEventListener('lush:menu-action', onDomMenuAction as EventListener)
@@ -132,7 +134,7 @@
 
 <div class="flex min-h-screen w-full flex-col">
   {#if !isTauri}
-    <SvelteDevMenuBar spec={LUSH_MENU_BAR} homeLabel="lush" />
+    <SvelteDevMenuBar spec={LUSH_MENU_BAR} homeLabel="lush" showHome={false} />
   {/if}
 
   <div class="flex-1 min-h-0 w-full">
