@@ -111,6 +111,43 @@
     return Math.max(min, Math.min(value, max))
   }
 
+  function parsePathKey(key: string): number[] | null {
+    try {
+      const parsed: unknown = JSON.parse(key)
+      if (!Array.isArray(parsed)) return null
+      if (!parsed.every((entry) => typeof entry === 'number')) return null
+      return parsed
+    } catch {
+      return null
+    }
+  }
+
+  function findPathAtPos(pos: number): number[] | null {
+    let bestPath: number[] | null = null
+    let bestSpan: Span | null = null
+    let bestIsInput = false
+
+    for (const [key, span] of editorState.spansByPath.entries()) {
+      if (pos < span.from || pos > span.to) continue
+      const path = parsePathKey(key)
+      if (!path) continue
+      const token = getTokenByPath(editorState.root, path)
+      if (!token) continue
+
+      const spanSize = span.to - span.from
+      const bestSize = bestSpan ? bestSpan.to - bestSpan.from : Number.POSITIVE_INFINITY
+      const isInput = isInputToken(token)
+
+      if (spanSize < bestSize || (spanSize === bestSize && isInput && !bestIsInput)) {
+        bestPath = path
+        bestSpan = span
+        bestIsInput = isInput
+      }
+    }
+
+    return bestPath
+  }
+
   function buildSelection(): EditorSelection {
     if (editorState.mode === 'insert') {
       const span = getSpan(editorState.currentInputPath)
@@ -121,7 +158,8 @@
 
     const span = getSpan(editorState.currentPath)
     if (!span) return EditorSelection.single(0)
-    return EditorSelection.single(span.from, span.to)
+    const caret = span.textFrom ?? span.from
+    return EditorSelection.single(caret)
   }
 
   function buildDecorations(): DecorationSet {
@@ -336,9 +374,10 @@
     if (editorState.mode === 'normal') {
       const span = getSpan(editorState.currentPath)
       if (!span) return
+      const caret = span.textFrom ?? span.from
       const selection = update.state.selection.main
-      if (selection.from !== span.from || selection.to !== span.to) {
-        view.dispatch({ selection: { anchor: span.from, head: span.to } })
+      if (selection.from !== caret || selection.to !== caret) {
+        view.dispatch({ selection: { anchor: caret } })
       }
     }
   })
@@ -350,8 +389,29 @@
         doc: editorState.projectionText,
         extensions: [
           EditorState.allowMultipleSelections.of(false),
-          EditorView.editable.of(false),
+          EditorView.editable.of(true),
           EditorView.domEventHandlers({
+            mousedown: (event) => {
+              if (!view) return false
+              if (editorState.mode !== 'normal') return false
+              const coords = { x: event.clientX, y: event.clientY }
+              const pos = view.posAtCoords(coords)
+              if (pos == null) return false
+              const path = findPathAtPos(pos)
+              if (!path) return false
+              const token = getTokenByPath(editorState.root, path)
+              if (!token) return false
+              const inputPath = isInputToken(token)
+                ? path
+                : findFirstInputPath(editorState.root, path)
+              setState({
+                ...editorState,
+                currentPath: path,
+                currentInputPath: inputPath
+              })
+              view.focus()
+              return false
+            },
             keydown: (event) => {
               const handled = handleKey(event)
               if (handled) event.preventDefault()
@@ -370,10 +430,14 @@
               color: 'rgb(226, 232, 240)'
             },
             '.cm-content': {
-              padding: '16px'
+              padding: '16px',
+              caretColor: 'rgba(56, 189, 248, 0.95)'
             },
             '.cm-scroller': {
               overflow: 'auto'
+            },
+            '.cm-cursor': {
+              borderLeftColor: 'rgba(56, 189, 248, 0.95)'
             },
             '.cm-structural-focus': {
               backgroundColor: 'rgba(56, 189, 248, 0.18)',
