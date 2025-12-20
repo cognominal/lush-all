@@ -80,11 +80,80 @@
   import { LUSH_MENU_BAR } from '$lib/logic/menu'
   import { onDestroy, onMount } from 'svelte'
   import { goto } from '$app/navigation'
+  import CommandPalette from '$lib/components/CommandPalette.svelte'
+  import { registerCommand, type Command } from '$lib/logic/commands'
 
   let unlisten: Unlisten | null = null
   let teardownDomAbout: (() => void) | null = null
   let teardownDomMenuAction: (() => void) | null = null
+  let teardownPaletteHotkey: (() => void) | null = null
+  let paletteOpen = false
+
+  function openPalette() {
+    paletteOpen = true
+  }
+
+  function closePalette() {
+    paletteOpen = false
+  }
+
+  function executeCommand(command: Command) {
+    command.handler()
+    closePalette()
+  }
+
+  function registerMenuCommands() {
+    registerCommand({
+      id: 'open-editor',
+      label: 'Open editor',
+      group: 'Lush',
+      handler: () => {
+        void goto('/editor')
+      }
+    })
+
+    registerCommand({
+      id: 'open-yaml-sample',
+      label: 'Open yaml_sample',
+      group: 'Lush',
+      handler: () => {
+        void goto('/')
+      }
+    })
+
+    registerCommand({
+      id: 'login',
+      label: 'Login',
+      group: 'Lush',
+      handler: () => {
+        void openLogin()
+      }
+    })
+
+    registerCommand({
+      id: 'about',
+      label: 'About Lush',
+      group: 'Lush',
+      handler: () => {
+        openAbout()
+      }
+    })
+  }
+
+  function installPaletteHotkey() {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'F1') return
+      event.preventDefault()
+      openPalette()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }
   onMount(async () => {
+    registerMenuCommands()
+    teardownPaletteHotkey = installPaletteHotkey()
     const onDomAbout = (e: Event) => {
       const ce = e as CustomEvent<unknown>
       aboutMessage = typeof ce.detail === 'string' ? ce.detail : 'Lush app (early stage)'
@@ -129,6 +198,8 @@
     teardownDomAbout = null
     teardownDomMenuAction?.()
     teardownDomMenuAction = null
+    teardownPaletteHotkey?.()
+    teardownPaletteHotkey = null
   })
 </script>
 
@@ -141,6 +212,8 @@
     <slot />
   </div>
 </div>
+
+<CommandPalette open={paletteOpen} onClose={closePalette} onExecute={executeCommand} />
 
 {#if aboutOpen}
   <div
