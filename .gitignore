@@ -24,3 +24,6 @@ bun-debug.log*
 # Local secrets (do not commit)
 workos-keys.txt
 svelte-app/workos-keys.txt
+
+# Local session summaries
+summaries/
