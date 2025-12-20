@@ -79,6 +79,7 @@
   import SvelteDevMenuBar from '$lib/components/SvelteDevMenuBar.svelte'
   import { LUSH_MENU_BAR } from '$lib/logic/menu'
   import { onDestroy, onMount } from 'svelte'
+  import { goto } from '$app/navigation'
 
   let unlisten: Unlisten | null = null
   let teardownDomAbout: (() => void) | null = null
@@ -103,6 +104,8 @@
         openAbout()
       } else if (action === 'login') {
         void openLogin()
+      } else if (action === 'open-editor') {
+        void goto('/editor')
       }
     }
     window.addEventListener('lush:menu-action', onDomMenuAction as EventListener)

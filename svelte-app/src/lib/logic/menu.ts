@@ -14,6 +14,12 @@ export const LUSH_MENU_BAR: MenuBarSpec = {
           action: 'login'
         },
         {
+          kind: 'action',
+          id: 'editor',
+          label: 'editor',
+          action: 'open-editor'
+        },
+        {
           kind: 'separator',
           id: 'sep-1'
         },

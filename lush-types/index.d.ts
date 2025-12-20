@@ -110,3 +110,57 @@ export const NAKED_STRING_TYPE: 'NakedString'
 export function tokenText(token: InputToken | undefined): string
 export function tokenizeLine(text: string): TokenLine
 export function stringToTokenMultiLine(input: string): TokenMultiLine
+
+export type MenuActionId =
+  | 'about'
+  | 'login'
+  | 'logout'
+  | 'open-yaml-file'
+  | 'open-editor'
+
+export type KeyModifier = 'Alt' | 'Control' | 'Meta' | 'Shift'
+export type MenuAccelerator = {
+  key: string
+  modifiers?: readonly KeyModifier[]
+}
+
+export type MenuItem =
+  | {
+      kind: 'action'
+      id: string
+      label: string
+      action: MenuActionId
+      accelerator?: MenuAccelerator
+      disabled?: boolean
+    }
+  | {
+      kind: 'separator'
+      id: string
+    }
+  | {
+      kind: 'submenu'
+      id: string
+      label: string
+      items: readonly MenuItem[]
+      disabled?: boolean
+    }
+
+export type MenuMenu = Extract<MenuItem, { kind: 'submenu' }>
+
+export type MenuBarSpec = {
+  menus: readonly MenuMenu[]
+}
+
+export type MenuActionEventDetail =
+  | {
+      action: 'about'
+    }
+  | {
+      action: 'login'
+    }
+  | {
+      action: 'logout'
+    }
+  | {
+      action: 'open-editor'
+    }
