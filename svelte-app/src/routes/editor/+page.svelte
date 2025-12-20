@@ -30,6 +30,7 @@
     type Span
   } from '@lush/structural'
   import highlightRaw from '@lush/structural/highlight.yaml?raw'
+  import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -84,6 +85,8 @@
 
   let editorState: StructuralEditorState = createInitialState()
 
+  type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
+
   function rebuildProjection(nextRoot: InputToken, base: StructuralEditorState): StructuralEditorState {
     const projection = projectTree(nextRoot)
     inputTokenPaths = projection.inputTokenPaths
@@ -97,6 +100,27 @@
 
   function getSpan(path: number[]): Span | undefined {
     return editorState.spansByPath.get(serializePath(path))
+  }
+
+  function buildBreadcrumbs(path: number[]): BreadcrumbItem[] {
+    const items: BreadcrumbItem[] = []
+    let current: InputToken | undefined = editorState.root
+    const rootSpan = getSpan([])
+    items.push({
+      type: `${current.kind}.${current.type}`,
+      range: rootSpan ? { from: rootSpan.from, to: rootSpan.to } : null
+    })
+    for (const idx of path) {
+      current = current?.subTokens?.[idx]
+      if (!current) break
+      const currentPath = items.length === 1 ? [idx] : [...path.slice(0, items.length)]
+      const span = getSpan(currentPath)
+      items.push({
+        type: `${current.kind}.${current.type}`,
+        range: span ? { from: span.from, to: span.to } : null
+      })
+    }
+    return items
   }
 
   function getTextRange(span: Span | undefined): { from: number; to: number } {
@@ -463,6 +487,8 @@
     view?.destroy()
     view = null
   })
+
+  $: crumbs = buildBreadcrumbs(editorState.currentPath)
 </script>
 
 <div class="flex h-full flex-col gap-4 p-6">
@@ -470,7 +496,18 @@
     <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
       Structural Editor
     </div>
-    <div class="text-xs text-surface-400">
+    <div
+      class="text-xs text-surface-400"
+      role="button"
+      tabindex="0"
+      onclick={() => view?.blur()}
+      onkeydown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          view?.blur()
+        }
+      }}
+    >
       Mode: <span class="font-semibold text-surface-100">{editorState.mode}</span>
     </div>
   </div>
@@ -478,6 +515,8 @@
   <div class="flex-1 rounded-xl border border-surface-700/60 bg-surface-900/70">
     <div class="h-full min-h-[420px]" bind:this={host}></div>
   </div>
+
+  <BreadcrumbBar items={crumbs} />
 
   <div class="text-xs text-surface-400">
     Normal mode keys: i, Tab, Shift+Tab, Enter. Insert mode: Esc, printable characters.
