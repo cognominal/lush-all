@@ -7,6 +7,8 @@ const PICKER_SEPARATOR = '.'
 
 type UnknownRecord = Record<string, unknown>
 
+export type Picker = string
+
 function isPathLike(value: string): boolean {
   return PATH_PATTERN.test(value)
 }
@@ -58,7 +60,7 @@ export function yaml_weedout(input: unknown, keys: string[] | string): string {
 
 export function sveltePick(
   codeOrPath: string,
-  picker: string,
+  picker: Picker,
   yaml = false
 ): unknown {
   const source = isPathLike(codeOrPath)

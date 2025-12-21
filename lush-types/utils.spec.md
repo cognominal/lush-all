@@ -12,7 +12,7 @@ Add the function to `~/lush-types/utils.ts`.
 ## Function name and signature
 
 ```
-export function sveltePick(codeOrPath, picker: string, yaml = false) { ... }
+export function sveltePick(codeOrPath, picker: Picker, yaml = false) { ... }
 ```
 
 ## Behavior
