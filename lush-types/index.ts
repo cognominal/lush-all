@@ -98,6 +98,7 @@ export interface InputToken {
   text?: string
   subTokens?: InputToken[]
   x?: number
+  ast?:  // ast node, for svelte, that would be an augmented tree
   completion?: CompletionTokenMetadata
 }
 
@@ -155,24 +156,24 @@ export type MenuAccelerator = {
 
 export type MenuItem =
   | {
-      kind: 'action'
-      id: string
-      label: string
-      action: MenuActionId
-      accelerator?: MenuAccelerator
-      disabled?: boolean
-    }
+    kind: 'action'
+    id: string
+    label: string
+    action: MenuActionId
+    accelerator?: MenuAccelerator
+    disabled?: boolean
+  }
   | {
-      kind: 'separator'
-      id: string
-    }
+    kind: 'separator'
+    id: string
+  }
   | {
-      kind: 'submenu'
-      id: string
-      label: string
-      items: readonly MenuItem[]
-      disabled?: boolean
-    }
+    kind: 'submenu'
+    id: string
+    label: string
+    items: readonly MenuItem[]
+    disabled?: boolean
+  }
 
 export type MenuMenu = Extract<MenuItem, { kind: 'submenu' }>
 
@@ -182,22 +183,22 @@ export type MenuBarSpec = {
 
 export type MenuActionEventDetail =
   | {
-      action: 'about'
-    }
+    action: 'about'
+  }
   | {
-      action: 'login'
-    }
+    action: 'login'
+  }
   | {
-      action: 'logout'
-    }
+    action: 'logout'
+  }
   | {
-      action: 'open-editor'
-    }
+    action: 'open-editor'
+  }
   | {
-      action: 'open-yaml-sample'
-    }
+    action: 'open-yaml-sample'
+  }
   | {
-      action: 'open-yaml-file'
-      path?: string
-      content?: string
-    }
+    action: 'open-yaml-file'
+    path?: string
+    content?: string
+  }

@@ -9,6 +9,11 @@ to bring in `jq` and `yaml` in my would-be lush language.
 Yaml parsing is done using the `lush` branch of my  fork of [yaml] which
 uses  `lush-types/`
 
+## next step
+
+unparse a svelte augmented Acorn tree into an inputToken tree
+See [unperse](unparse.md)
+
 ## install
 
 We suppose the [bun](https://en.wikipedia.org/wiki/Bun_(software))

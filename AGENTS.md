@@ -5,11 +5,15 @@
 - TypeScript-only changes should stay `strict` and must not use `any` (prefer `unknown` + narrowing).
 - Use `bun` to install and run scripts; avoid adding `npm`/`pnpm`/`yarn` workflows.
 - Use `vitest` for tests; do not add new Jest tests (the `yaml/` package still has legacy Jest scripts).
-- Builds must be clean: no errors and no warnings in terminal output.
+- Builds must be clean: no errors and no warnings.
+- When necessary access code from ~/git/sveltejs--svelte for the svelte
+  compiler or ~/git/sveltejs-svelte.dev for codes examples usising svelte io
+= Use tailwind css for new code.
 
 ## Repo layout
 
-- `lush-types/`: shared TS types/helpers (Vitest).
+- `lush-types/`: shared TS types/helpers (Vitest). Our code is build around trees
+  of InputToken, and TokenMultiLine.
 - `lush-term-editor/`: editor experiments (TypeScript `strict`, Vitest).
 - `yaml/`: fork/vendor of `eemeli/yaml` (has Vitest available, but also legacy Jest + ESLint + Rollup).
 - `svelte-app/`: SvelteKit app (Vite build + `svelte-check`, uses `@sveltejs/adapter-node`).
