@@ -1,13 +1,27 @@
 # structural-editing.md
 
+## Changes to be implemented
+
+- now also a component
+- an edit command in the palette will allow to choose the file to be edited.
+- use freedesktop conventions to store the yaml files that drive the editor.
+
+- When the implementation changes, link to the implementation function must
+  be updated
+
 ## 1. Objective
 
 Write a package in the current monorepo folder.
 Use lush-type/
-This package will be used to implement a new page in svelte-app/
+This package will is used to implement a new page with route `/editor` using
+a new `editor` component.
 It will contain a five line js sample file as an InputToken tree highlighted as specified below.
 Any js keyword will be a js.keyword as per the yaml file.
-Other alphanumerics starting by a letter will be a js.variable. 
+Other alphanumerics starting by a letter will be a js.variable.
+
+Implementation: `createSampleJsTree` builds the five-line sample token tree in
+[svelte-codemirror/src/sample.ts](svelte-codemirror/src/sample.ts) (function:
+[createSampleJsTree](svelte-codemirror/src/sample.ts#L25)).
 
 ### Updated objective (reformulated)
 
@@ -28,7 +42,6 @@ Reformulate the updated objective.
 Add to the current file information on how you will do the integration with
 svelte-app/
 
-
 Implement a structural editor as a SvelteKit page using CodeMirror as the view
 layer, with a modal interaction model inspired by Vim:
 
@@ -42,6 +55,14 @@ bindings).
 
 The edited document is represented as a tree of InputToken nodes. Navigation
 and editing must respect this structure.
+
+Implementation: `serializePath`, `getTokenByPath`, `isLeaf`, and `isInputToken`
+provide core tree utilities in
+[svelte-codemirror/src/tree.ts](svelte-codemirror/src/tree.ts) (functions:
+[serializePath](svelte-codemirror/src/tree.ts#L3),
+[getTokenByPath](svelte-codemirror/src/tree.ts#L7),
+[isLeaf](svelte-codemirror/src/tree.ts#L17),
+[isInputToken](svelte-codemirror/src/tree.ts#L21)).
 
 ## 2. Core Data Model
 
@@ -106,6 +127,12 @@ js.keyword: bold.blue
 js.variable: italic
 ```
 
+Implementation: `parseHighlightYaml` parses the YAML mapping and
+`createHighlightRegistry` provides the class lookup in
+[svelte-codemirror/src/highlight.ts](svelte-codemirror/src/highlight.ts)
+(functions: [parseHighlightYaml](svelte-codemirror/src/highlight.ts#L27),
+[createHighlightRegistry](svelte-codemirror/src/highlight.ts#L72)).
+
 ### 4.2 Interpretation
 
 This project is in the browser. Chalk is Node-oriented; therefore:
@@ -136,6 +163,10 @@ When applying a style to a token:
 
 CodeMirror requires a string. The editor must define a deterministic
 projection:
+
+Implementation: `projectTree` builds the projection text plus span metadata in
+[svelte-codemirror/src/projection.ts](svelte-codemirror/src/projection.ts)
+(function: [projectTree](svelte-codemirror/src/projection.ts#L68)).
 
 ### 5.1 Projection rules (initial)
 
@@ -265,6 +296,14 @@ Define a function that lists all input tokens in DFS order:
   - if leaf: include it
   - else: visit children in order
 - Store the list as paths: inputTokenPaths: number[][].
+
+Implementation: `findFirstInputPath`, `findNextInputPath`, `findPrevInputPath`,
+and `descendPath` implement DFS navigation helpers in
+[svelte-codemirror/src/navigation.ts](svelte-codemirror/src/navigation.ts)
+(functions: [findFirstInputPath](svelte-codemirror/src/navigation.ts#L15),
+[findNextInputPath](svelte-codemirror/src/navigation.ts#L31),
+[findPrevInputPath](svelte-codemirror/src/navigation.ts#L40),
+[descendPath](svelte-codemirror/src/navigation.ts#L49)).
 
 ### 8.2 "Next" and "Previous"
 
