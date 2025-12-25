@@ -1,16 +1,16 @@
 export const SPACE_TYPE = 'Space'
 export const NAKED_STRING_TYPE = 'NakedString'
 
-export function tokenText(token) {
+export function susyText(token) {
   if (!token) return ''
   if (typeof token.text === 'string') return token.text
-  if (Array.isArray(token.subTokens)) {
-    return token.subTokens.map(tokenText).join('')
+  if (Array.isArray(token.kids)) {
+    return token.kids.map(susyText).join('')
   }
   return ''
 }
 
-export function tokenizeLine(text) {
+export function tokenizeSusyLine(text) {
   if (!text) return []
   const tokens = []
   let idx = 0
@@ -30,7 +30,7 @@ export function tokenizeLine(text) {
   return tokens
 }
 
-export function stringToTokenMultiLine(input) {
+export function stringToSusyLines(input) {
   if (typeof input !== 'string' || input.length === 0) return []
-  return input.split(/\r?\n/).map(tokenizeLine)
+  return input.split(/\r?\n/).map(tokenizeSusyLine)
 }

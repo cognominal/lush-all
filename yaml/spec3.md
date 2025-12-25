@@ -161,14 +161,41 @@ const domTag = {
 
 ## Module loading and validation
 
-Arbitrary modules cannot be loaded safely without extra wiring. The
-implementation should provide explicit hooks to resolve and validate
-`module` + `className` before instantiation.
+Arbitrary modules cannot be loaded safely without explicit wiring. The
+tag should be configured with a loader interface and a strict allowlist.
 
-Suggested wiring:
+### Loader interface
 
-- A schema-level loader/registry that resolves `{ module, className }`
-  from an allowlist.
-- A validator that checks the instance exposes the declared `set` and
-  `push` methods.
-- A failure policy (e.g. warning + leave the node as `YAMLHybrid`).
+Add an optional schema-level hook used by hybrid tags:
+
+```ts
+type HybridClassLoader = (spec: {
+  module: string
+  className: string
+}) => { new (): unknown }
+
+type HybridLoadPolicy = {
+  allowlist: Array<{ module: string; className: string }>
+  loadClass: HybridClassLoader
+  validateInstance: (instance: unknown, set: string, push: string) => boolean
+  onFailure: 'warn-and-fallback' | 'error'
+}
+```
+
+### Resolution flow
+
+1) Parse the first tagged node and read `module`, `className`, `set`, `push`.
+2) Verify `{ module, className }` is present in `allowlist`.
+3) Call `loadClass` with `{ module, className }` to get the constructor.
+4) Instantiate with `new` and validate with `validateInstance`.
+5) If validation fails, either warn and return the raw `YAMLHybrid` node,
+   or throw, based on `onFailure`.
+
+### Example validation rule
+
+```ts
+const validateInstance = (instance: unknown, set: string, push: string) => {
+  const v = instance as Record<string, unknown>
+  return typeof v[set] === 'function' && typeof v[push] === 'function'
+}
+```

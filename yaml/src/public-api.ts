@@ -17,7 +17,7 @@ import type {
 import type * as CST from './parse/cst.ts'
 import { LineCounter } from './parse/line-counter.ts'
 import { Parser } from './parse/parser.ts'
-import type { InputToken, TokenMultiLine } from 'lush-types'
+import type { SusyNode, SusyLines } from 'lush-types'
 
 export interface EmptyStream
   extends Array<Document.Parsed>,
@@ -233,7 +233,7 @@ export function stringify(
   return new Document(value, _replacer, options).toString(options)
 }
 
-type FlatToken = { type: InputToken['type']; source: string }
+type FlatToken = { type: SusyNode['type']; source: string }
 
 function pushSourceTokens(
   list: CST.SourceToken[] | undefined,
@@ -283,8 +283,8 @@ function flattenCst(token: CST.Token, out: FlatToken[]): void {
   }
 }
 
-function flatToMultiLine(flat: FlatToken[]): TokenMultiLine {
-  const lines: TokenMultiLine = [[]]
+function flatToMultiLine(flat: FlatToken[]): SusyLines {
+  const lines: SusyLines = [[]]
   let line = 0
   let x = 0
 
@@ -325,7 +325,7 @@ export function lushify(
         ToStringOptions)
     | string
     | number
-): TokenMultiLine | undefined
+): SusyLines | undefined
 export function lushify(
   value: any,
   replacer?: Replacer | null,
@@ -337,7 +337,7 @@ export function lushify(
         ToStringOptions)
     | string
     | number
-): TokenMultiLine | undefined
+): SusyLines | undefined
 
 export function lushify(
   value: any,
@@ -359,7 +359,7 @@ export function lushify(
         ToStringOptions)
     | string
     | number
-): TokenMultiLine | undefined {
+): SusyLines | undefined {
   const hasReplacer =
     typeof replacer === 'function' || Array.isArray(replacer) || replacer === null
 

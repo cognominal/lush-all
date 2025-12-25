@@ -1,5 +1,5 @@
-import type { TokenMultiLine } from 'lush-types'
-import { tokenText, type InputToken } from 'lush-types'
+import type { SusyLines } from 'lush-types'
+import { susyText, type SusyNode } from 'lush-types'
 import {
   Document,
   isMap,
@@ -16,7 +16,7 @@ export type BreadcrumbItem = { type: string; range: { from: number; to: number }
 
 export type YamlAnalysis = {
   yamlText: string
-  lush: TokenMultiLine | undefined
+  lush: SusyLines | undefined
   doc: Document.Parsed | null
   jsView: string
   errors: string[]
@@ -24,7 +24,7 @@ export type YamlAnalysis = {
 
 export type SelectedTokenInput =
   | {
-      token: InputToken
+      token: SusyNode
       lineIdx: number
       tokenIdx: number
     }
@@ -41,7 +41,7 @@ export function analyzeYaml(yamlText: string): YamlAnalysis {
     errors.push(err instanceof Error ? err.message : String(err))
   }
 
-  let lush: TokenMultiLine | undefined = undefined
+  let lush: SusyLines | undefined = undefined
   try {
     lush = lushify(yamlText)
   } catch {
@@ -111,14 +111,14 @@ function offsetToLineCol(text: string, offset: number): { lineIdx: number; colId
   return { lineIdx, colIdx: clamped - lineStart }
 }
 
-function normalizeTokenPositions(line: Array<InputToken | null | undefined>): void {
+function normalizeTokenPositions(line: Array<SusyNode | null | undefined>): void {
   let cursor = 0
   for (let i = 0; i < line.length; i++) {
     const tok = line[i]
     if (!tok) continue
     tok.tokenIdx = i
     tok.x = cursor
-    cursor += tokenText(tok).length
+    cursor += susyText(tok).length
   }
 }
 
@@ -140,7 +140,7 @@ export function selectedTokenInputAtOffset(
     const tok = line[i]
     if (!tok) continue
     const x = typeof tok.x === 'number' ? tok.x : 0
-    const w = tokenText(tok).length
+    const w = susyText(tok).length
     if (colIdx >= x && colIdx < x + w) return { token: tok, lineIdx, tokenIdx: i }
   }
   return null
@@ -149,7 +149,7 @@ export function selectedTokenInputAtOffset(
 export function tokenInputAsYaml(selected: SelectedTokenInput): string {
   if (!selected) return ''
   const t = selected.token
-  const withoutSubtokens: Partial<InputToken> = {
+  const withoutKids: Partial<SusyNode> = {
     kind: t.kind,
     type: t.type,
     tokenIdx: t.tokenIdx,
@@ -157,7 +157,7 @@ export function tokenInputAsYaml(selected: SelectedTokenInput): string {
     text: t.text,
     completion: t.completion
   }
-  return stringify(withoutSubtokens).trimEnd()
+  return stringify(withoutKids).trimEnd()
 }
 
 function containsOffset(

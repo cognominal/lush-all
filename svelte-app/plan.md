@@ -1,6 +1,7 @@
 # Plan: SvelteKit YAML + Lush Breadcrumb Prototype
 
 ## Goal
+
 Create a SvelteKit app in `svelte-app/` that:
 
 - Shows a CodeMirror editor containing `YAML_SAMPLE`.
@@ -12,6 +13,7 @@ Create a SvelteKit app in `svelte-app/` that:
 - Keeps core logic UI-agnostic so the same logic can later be reused in a TUI.
 
 ## Approach
+
 1. **Scaffold SvelteKit in `svelte-app/`**
    - Minimal SvelteKit project (Vite-based).
    - Add CodeMirror 6 + YAML language support.
@@ -40,6 +42,7 @@ Create a SvelteKit app in `svelte-app/` that:
    - `vite build` passes.
 
 ## Deliverables / Key Files
+
 - `svelte-app/src/lib/logic/yamlAnalysis.ts` (UI-agnostic: parse/lushify/breadcrumbs).
 - `svelte-app/src/lib/components/YamlEditor.svelte` (CodeMirror editor + highlight + fold toggling).
 - `svelte-app/src/lib/components/BreadcrumbBar.svelte` (display + hover/click events).

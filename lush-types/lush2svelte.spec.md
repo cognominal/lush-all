@@ -2,7 +2,8 @@
 
 ## Purpose
 
-Convert a Leste (lush) representation into a Svelte-compatible structure.
+Convert a Leste (lush) representation into a Svelte-compatible structure and
+describe how poshification renders Leste using the highlight YAML.
 
 ## Notes on types
 
@@ -30,8 +31,10 @@ export function lush2svelte(lush: Multiline) { ... }
 
 ## Behavior
 
-- Leste is a "posh" variant of Lush. (UNSPECIFIED: clarify what "posh" means.)
-- This function currently focuses on "poshification" of HTML attributes.
+- Leste is a "posh" variant of Lush.
+- Poshification is the rendering of a `Multiline` using the highlight YAML
+  file (`svelte-codemirror/src/highlight.yaml`).
+- This function currently focuses on the poshification of HTML attributes.
 - For a Svelte HTML attribute with name `id`, emit an `InputToken` of kind
   `lush` and type `id`.
 - For a Svelte HTML attribute with name `class`, split the attribute value on
@@ -47,17 +50,14 @@ export function lush2svelte(lush: Multiline) { ... }
   surrounding element and document tree.
 - Expected enclosing structure (from compile output of `<h1 id="an_id">text</h1>`):
   - `ast.html` is a `Fragment` with `children` array.
-  - `ast.html.children[0]` is the `Element` node.
+  - `ast.html.children[0]` is the `Element`: node.
   - `ast.html.children[0].attributes` contains `Attribute` nodes.
   - `ast.html.children[0].children` contains text nodes for element content.
 
-## UNSPECIFIED
-
-- The precise meaning of "posh" in Leste vs Lush.
-- The exact `Multiline` type alias or shape in this context.
-- The concrete expected AST structure beyond the attribute-level rules above.
-
 ## InputToken tree vs MultiLine mapping (clarification)
+
+A MultiLine represents a zone of edition of a susy (/for now Leste) that compiles
+into an astre (for now svelte).
 
 - `MultiLine` is defined in the same file as `InputToken`.
 - The mapping from an `InputToken` tree to `MultiLine` is currently unclear.
@@ -65,4 +65,33 @@ export function lush2svelte(lush: Multiline) { ... }
   - `multiline`: the existing `MultiLine` layout (textual layout/lines),
   - `root`: the root `InputToken` for the concrete syntax tree.
 - Rationale: `MultiLine` represents layout as text, while the `InputToken` tree
-  represents the concrete syntax tree structure.
+  represents the concrete syntax tree structure. 
+
+## YAML rules for InputToken rendering (from svelte2leste)
+
+- The poshification pipeline uses YAML rule maps to transform a Svelte AST
+  (an "astre") into an `InputToken` tree (a "susy" representation).
+- A posh susy is a lean, user-editable representation that uses font style
+  as syntax.
+- Examples (attribute subset):
+  - `id="an_id"` translates into `#an_id`
+  - `class="class1 class2"` translates into `.class1 .class2`
+- These textual forms are represented as an `InputToken` tree; the `ast` field
+  of each `InputToken` points to the corresponding astre node.
+- Test items follow the naming convention:
+  - `name.svelte.yaml`
+  - `name.leste.yaml`
+  - A test asserts `.svelte.yaml` transforms into `.leste.yaml`.
+- Rules are YAML maps; the transformer matches by `type` and uses the first
+  matching rule.
+- Example rule for `Attribute` with name `id`:
+  - When `name: id`, `gen_` emits an `InputToken` with `kind: leste`, `type: id`,
+    and `text: $value`.
+- Example rule for `Attribute` with name `class` (more complex; uses a helper
+  to split values and emit `attrclass` tokens).
+- Reference: `data/svelte2leste/README.md`.
+
+## UNSPECIFIED
+
+- The exact `Multiline` type alias or shape in this context.
+- The concrete expected AST structure beyond the attribute-level rules above.

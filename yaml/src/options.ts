@@ -29,7 +29,7 @@ export type ParseOptions = {
 
   /**
    * If set, newlines will be tracked, to allow for `lineCounter.linePos(offset)`
-   * to provide the `{ line, col }` positions within the input.
+   * to provide the `{ line, col }` positionsii within the input.
    */
   lineCounter?: LineCounter
 

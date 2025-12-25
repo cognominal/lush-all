@@ -32,6 +32,5 @@ We want to represent the resulting tree as yaml
    IT:
      kind-type: leste.tag
      subTokens:
-        
      ast:
         type: RegularElement

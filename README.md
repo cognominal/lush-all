@@ -52,8 +52,11 @@ See [svelte-app/app.md](svelte-app/app.md])
 ## Monorepo Layout
 
 - `lush-types` is a local npm package to define types used everywhere else
-= `yaml/` is a  it is a copy of my  `lush` branch of my local fork of [yaml](https://github.com/eemeli/yaml)
+
+= `yaml/` is 
+a  it is a copy of my  `lush` branch of my local fork of [yaml](https://github.com/eemeli/yaml)
   to parse a yaml string into a `TokenMultiline` structure
+
 - `lush-term-editor/` is a terminal based structural editor.
 
 Later (long term) will be :
@@ -92,6 +95,7 @@ is modified. key placeholder will be displayed as key-placeholder`n` to avoid
 duplicate.
 
 - a breadcrumb field will be displayed in the status line at the bottom of
+
 the termonal
 
 Note : codex has inserted stuff from `rdln-lush`

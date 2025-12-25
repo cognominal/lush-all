@@ -82,7 +82,7 @@ type TypeScriptSymbolCompletionMetadata =
 
 
 // Distinguish kinds so we can tell YAML tokens apart from future kinds.
-export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js'
+export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
 
 export type CompletionTokenMetadata =
   | FolderCompletionMetadata
@@ -91,33 +91,42 @@ export type CompletionTokenMetadata =
   | SnippetTriggerCompletionMetadata
   | TypeScriptSymbolCompletionMetadata
 
-export interface InputToken {
+export interface SusyINode {
   kind: LushTokenKind
   type: TokenTypeName
   tokenIdx: number
   text?: string
-  subTokens?: InputToken[]
+  kids?: SusyNode[]
   x?: number
-  ast?:  // ast node, for svelte, that would be an augmented tree
+  ast?: unknown // ast node, for svelte, that would be an augmented tree
   completion?: CompletionTokenMetadata
 }
 
-export type TokenLine = InputToken[]
-export type TokenMultiLine = TokenLine[]
+export type SusyLeaf = SusyINode & { text: string }
+export type SusyNode = SusyINode | SusyLeaf
+export type SusyTok = SusyLeaf
+
+export type SusyLine = SusyNode[]
+export type SusyLines = SusyLine[]
+
+export interface SusyEd {
+  root: SusyNode
+  lines: SusyLines
+}
 
 
-export function tokenText(token: InputToken | undefined): string {
+export function susyText(token: SusyNode | undefined): string {
   if (!token) return ''
   if (typeof token.text === 'string') return token.text
-  if (Array.isArray(token.subTokens)) {
-    return token.subTokens.map(tokenText).join('')
+  if (Array.isArray(token.kids)) {
+    return token.kids.map(susyText).join('')
   }
   return ''
 }
 
-export function tokenizeLine(text: string): TokenLine {
+export function tokenizeSusyLine(text: string): SusyLine {
   if (!text) return []
-  const tokens: TokenLine = []
+  const tokens: SusyLine = []
   let idx = 0
   while (idx < text.length) {
     const start = idx
@@ -135,9 +144,9 @@ export function tokenizeLine(text: string): TokenLine {
   return tokens
 }
 
-export function stringToTokenMultiLine(input: string): TokenMultiLine {
+export function stringToSusyLines(input: string): SusyLines {
   if (typeof input !== 'string' || input.length === 0) return []
-  return input.split(/\r?\n/).map(tokenizeLine)
+  return input.split(/\r?\n/).map(tokenizeSusyLine)
 }
 
 export type MenuActionId =

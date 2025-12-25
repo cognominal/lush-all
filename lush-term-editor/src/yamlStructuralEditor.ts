@@ -1,16 +1,16 @@
 import { lushify, parse } from 'yaml'
 import { inspect } from 'node:util'
 import {
-  tokenText,
-  stringToTokenMultiLine,
-  type InputToken,
-  type TokenLine,
-  type TokenMultiLine,
+  susyText,
+  stringToSusyLines,
+  type SusyNode,
+  type SusyLine,
+  type SusyLines,
   type TokenTypeName,
   type LushTokenKind
 } from 'lush-types'
 
-export type Multiline = TokenLine
+export type Multiline = SusyLine
 export type MultiLines = Multiline[]
 
 const SAMPLE_YAML = `- toto
@@ -22,12 +22,12 @@ const SEQ_ITEM_TYPE: TokenTypeName = 'seq-item-ind'
 const SPACE_TYPE: TokenTypeName = 'space'
 const YAML_KIND: LushTokenKind = 'YAML'
 
-function cloneToken(token: InputToken): InputToken {
-  const clone: InputToken = { ...token, kind: token.kind ?? YAML_KIND }
-  if (token.subTokens?.length) {
-    clone.subTokens = token.subTokens.map(cloneToken)
+function cloneToken(token: SusyNode): SusyNode {
+  const clone: SusyNode = { ...token, kind: token.kind ?? YAML_KIND }
+  if (token.kids?.length) {
+    clone.kids = token.kids.map(cloneToken)
   } else {
-    delete clone.subTokens
+    delete clone.kids
   }
   return clone
 }
@@ -37,7 +37,7 @@ function cloneLine(line: Multiline): Multiline {
 }
 
 export function lineToText(line: Multiline): string {
-  return line.map(tokenText).join('')
+  return line.map(susyText).join('')
 }
 
 function indentForLine(line: Multiline): string {
@@ -46,12 +46,12 @@ function indentForLine(line: Multiline): string {
   return match ? match[1] : ''
 }
 
-function makeToken(type: TokenTypeName, text: string, tokenIdx: number, x: number): InputToken {
+function makeToken(type: TokenTypeName, text: string, tokenIdx: number, x: number): SusyNode {
   return { kind: YAML_KIND, type, text, tokenIdx, x }
 }
 
 function buildEmptyArrayItem(indent: string): Multiline {
-  const tokens: InputToken[] = []
+  const tokens: SusyNode[] = []
   let cursor = 0
 
   if (indent.length) {
@@ -74,16 +74,16 @@ function normalizeLinePositions(line: Multiline): void {
     if (!token) continue
     token.tokenIdx = i
     token.x = cursor
-    cursor += tokenText(token).length
+    cursor += susyText(token).length
   }
 }
 
 function buildSampleMultiLines(yamlText = SAMPLE_YAML): MultiLines {
-  const parsed = (lushify(yamlText) as TokenMultiLine | undefined) ?? []
+  const parsed = (lushify(yamlText) as SusyLines | undefined) ?? []
   if (parsed.length) {
     return parsed.map(cloneLine)
   }
-  const fallback = stringToTokenMultiLine(yamlText)
+  const fallback = stringToSusyLines(yamlText)
   fallback.forEach(normalizeLinePositions)
   return fallback
 }
@@ -123,10 +123,10 @@ function buildJsViewMultiline(yamlText: string): MultiLines {
       colors: false,
       compact: false
     })
-    return stringToTokenMultiLine(inspected)
+    return stringToSusyLines(inspected)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'parse error'
-    return stringToTokenMultiLine(`! invalid YAML: ${msg}`)
+    return stringToSusyLines(`! invalid YAML: ${msg}`)
   }
 }
 

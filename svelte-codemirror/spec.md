@@ -12,10 +12,12 @@
 ## 1. Objective
 
 Write a package in the current monorepo folder.
-Use lush-type/
-This package will is used to implement a new page with route `/editor` using
+Use `lush-type` package.
+This `svelte-codemirror` package  is used to implement a new page with route
+`/editor` using
 a new `editor` component.
-It will contain a five line js sample file as an InputToken tree highlighted as specified below.
+It will contain a five line js sample file as an InputToken
+tree highlighted as specified below.
 Any js keyword will be a js.keyword as per the yaml file.
 Other alphanumerics starting by a letter will be a js.variable.
 

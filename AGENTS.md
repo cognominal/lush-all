@@ -6,8 +6,11 @@
 - Use `bun` to install and run scripts; avoid adding `npm`/`pnpm`/`yarn` workflows.
 - Use `vitest` for tests; do not add new Jest tests (the `yaml/` package still has legacy Jest scripts).
 - Builds must be clean: no errors and no warnings.
+- For Markdown, ensure blank lines around headings and lists to avoid nvim lint errors.
+- When creating or modifying `.md` files, normalize blank lines around headings and lists in the changed Markdown files.
 - When necessary access code from ~/git/sveltejs--svelte for the svelte
   compiler or ~/git/sveltejs-svelte.dev for codes examples usising svelte io
+
 = Use tailwind css for new code.
 
 ## Repo layout

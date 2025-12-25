@@ -1,4 +1,4 @@
-import type { TokenMultiLine } from 'lush-types'
+import type { SusyLines } from 'lush-types'
 import type {
   CreateNodeOptions,
   DocumentOptions,
@@ -30,5 +30,5 @@ declare module 'yaml' {
           ToStringOptions)
       | string
       | number
-  ): TokenMultiLine | undefined
+  ): SusyLines | undefined
 }

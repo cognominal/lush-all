@@ -1,5 +1,3 @@
-
-
 export type YamlTokenType =
   | 'byte-order-mark'
   | 'doc-mode'
@@ -33,8 +31,8 @@ export type YamlTokenType =
   | 'flow-collection'
   | 'document'
 
-export declare const SPACE_TYPE: "Space"
-export declare const NAKED_STRING_TYPE: "NakedString"
+export const SPACE_TYPE: 'Space'
+export const NAKED_STRING_TYPE: 'NakedString'
 
 export type SyntheticTokenType = typeof SPACE_TYPE | typeof NAKED_STRING_TYPE
 export type JsTokenType =
@@ -82,7 +80,7 @@ type TypeScriptSymbolCompletionMetadata =
     modulePath?: string
   }
 
-export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js'
+export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
 
 export type CompletionTokenMetadata =
   | FolderCompletionMetadata
@@ -91,25 +89,32 @@ export type CompletionTokenMetadata =
   | SnippetTriggerCompletionMetadata
   | TypeScriptSymbolCompletionMetadata
 
-export interface InputToken {
+export interface SusyINode {
   kind: LushTokenKind
   type: TokenTypeName
   tokenIdx: number
   text?: string
-  subTokens?: InputToken[]
+  kids?: SusyNode[]
   x?: number
+  ast?: any
   completion?: CompletionTokenMetadata
 }
 
-export type TokenLine = InputToken[]
-export type TokenMultiLine = TokenLine[]
+export type SusyLeaf = SusyINode & { text: string }
+export type SusyNode = SusyINode | SusyLeaf
+export type SusyTok = SusyLeaf
 
-export const SPACE_TYPE: 'Space'
-export const NAKED_STRING_TYPE: 'NakedString'
+export type SusyLine = SusyNode[]
+export type SusyLines = SusyLine[]
 
-export function tokenText(token: InputToken | undefined): string
-export function tokenizeLine(text: string): TokenLine
-export function stringToTokenMultiLine(input: string): TokenMultiLine
+export interface SusyEd {
+  root: SusyNode
+  lines: SusyLines
+}
+
+export function susyText(token: SusyNode | undefined): string
+export function tokenizeSusyLine(text: string): SusyLine
+export function stringToSusyLines(input: string): SusyLines
 
 export type MenuActionId =
   | 'about'

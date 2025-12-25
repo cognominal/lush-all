@@ -1,22 +1,25 @@
-import type { InputToken } from '../../lush-types/index.ts'
-import { getTokenByPath, isInputToken } from './tree'
+import type { SusyNode } from '../../lush-types/index.ts'
+import { getNodeByPath, isSusyTok } from './tree'
 
-function findFirstInputInSubtree(token: InputToken, path: number[]): number[] | undefined {
-  if (isInputToken(token)) return path
-  const children = token.subTokens ?? []
+function findFirstTokInSubtree(
+  token: SusyNode,
+  path: number[]
+): number[] | undefined {
+  if (isSusyTok(token)) return path
+  const children = token.kids ?? []
   for (let idx = 0; idx < children.length; idx += 1) {
     const child = children[idx]
-    const found = findFirstInputInSubtree(child, [...path, idx])
+    const found = findFirstTokInSubtree(child, [...path, idx])
     if (found) return found
   }
   return undefined
 }
 
-export function findFirstInputPath(root: InputToken, path: number[]): number[] {
-  const token = getTokenByPath(root, path)
+export function findFirstTokPath(root: SusyNode, path: number[]): number[] {
+  const token = getNodeByPath(root, path)
   if (!token) return path
-  if (isInputToken(token)) return path
-  return findFirstInputInSubtree(token, path) ?? path
+  if (isSusyTok(token)) return path
+  return findFirstTokInSubtree(token, path) ?? path
 }
 
 function pathKey(path: number[]): string {
@@ -28,7 +31,7 @@ function findPathIndex(paths: number[][], target: number[]): number {
   return paths.findIndex((path) => pathKey(path) === key)
 }
 
-export function findNextInputPath(
+export function findNextTokPath(
   paths: number[][],
   current: number[]
 ): number[] | undefined {
@@ -37,7 +40,7 @@ export function findNextInputPath(
   return paths[idx + 1]
 }
 
-export function findPrevInputPath(
+export function findPrevTokPath(
   paths: number[][],
   current: number[]
 ): number[] | undefined {
@@ -46,8 +49,8 @@ export function findPrevInputPath(
   return paths[idx - 1]
 }
 
-export function descendPath(root: InputToken, path: number[]): number[] {
-  const token = getTokenByPath(root, path)
-  if (!token?.subTokens || token.subTokens.length === 0) return path
+export function descendPath(root: SusyNode, path: number[]): number[] {
+  const token = getNodeByPath(root, path)
+  if (!token?.kids || token.kids.length === 0) return path
   return [...path, 0]
 }

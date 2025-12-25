@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'vitest'
-import type { TokenMultiLine } from 'lush-types'
+import type { SusyLines } from 'lush-types'
 import { lushify } from 'yaml'
 
 describe('YAML.lushify integration', () => {
-  test('maps list with nested map into TokenMultiLine', () => {
+  test('maps list with nested map into SusyLines', () => {
     const yamlSrc = `- toto
 - a: b
   c: d
 `
-    const tokens = lushify(yamlSrc) as TokenMultiLine
+    const tokens = lushify(yamlSrc) as SusyLines
     expect(tokens).toBeDefined()
     expect(tokens).toHaveLength(4)
 

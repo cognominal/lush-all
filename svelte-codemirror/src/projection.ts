@@ -1,21 +1,21 @@
-import type { InputToken } from '../../lush-types/index.ts'
+import type { SusyNode } from '../../lush-types/index.ts'
 import type { Span } from './types'
-import { isInputToken, serializePath } from './tree'
+import { isSusyTok, serializePath } from './tree'
 
 export interface ProjectionResult {
   text: string
   spansByPath: Map<string, Span>
-  inputTokenPaths: number[][]
+  tokPaths: number[][]
 }
 
 type SubtreeProjection = {
   text: string
   spansByPath: Map<string, Span>
-  inputTokenPaths: number[][]
+  tokPaths: number[][]
 }
 
-function projectSubtree(token: InputToken, path: number[]): SubtreeProjection {
-  if (!token.subTokens || token.subTokens.length === 0) {
+function projectSubtree(token: SusyNode, path: number[]): SubtreeProjection {
+  if (!token.kids || token.kids.length === 0) {
     const text = token.text ?? ''
     const span: Span = {
       from: 0,
@@ -28,16 +28,16 @@ function projectSubtree(token: InputToken, path: number[]): SubtreeProjection {
     return {
       text,
       spansByPath,
-      inputTokenPaths: isInputToken(token) ? [path] : []
+      tokPaths: isSusyTok(token) ? [path] : []
     }
   }
 
   let combinedText = ''
   const spansByPath = new Map<string, Span>()
-  const inputTokenPaths: number[][] = []
+  const tokPaths: number[][] = []
   let prevHadText = false
 
-  token.subTokens.forEach((child: InputToken, idx: number) => {
+  token.kids.forEach((child: SusyNode, idx: number) => {
     const childPath = [...path, idx]
     const childProjection = projectSubtree(child, childPath)
 
@@ -58,13 +58,13 @@ function projectSubtree(token: InputToken, path: number[]): SubtreeProjection {
       })
     }
 
-    inputTokenPaths.push(...childProjection.inputTokenPaths)
+    tokPaths.push(...childProjection.tokPaths)
   })
 
   spansByPath.set(serializePath(path), { from: 0, to: combinedText.length })
-  return { text: combinedText, spansByPath, inputTokenPaths }
+  return { text: combinedText, spansByPath, tokPaths }
 }
 
-export function projectTree(root: InputToken): ProjectionResult {
+export function projectTree(root: SusyNode): ProjectionResult {
   return projectSubtree(root, [])
 }

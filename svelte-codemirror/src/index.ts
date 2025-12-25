@@ -1,18 +1,24 @@
-export type { InputToken, LushTokenKind, TokenTypeName } from '../../lush-types/index.ts'
+export type {
+  LushTokenKind,
+  SusyLeaf,
+  SusyNode,
+  SusyTok,
+  TokenTypeName
+} from '../../lush-types/index.ts'
 export type { Mode, Span, StructuralEditorState } from './types'
 export { createSampleJsTree } from './sample'
 export { projectTree } from './projection'
 export {
-  getTokenByPath,
-  isInputToken,
-  isLeaf,
+  getNodeByPath,
+  isSusyLeaf,
+  isSusyTok,
   serializePath
 } from './tree'
 export {
   descendPath,
-  findFirstInputPath,
-  findNextInputPath,
-  findPrevInputPath
+  findFirstTokPath,
+  findNextTokPath,
+  findPrevTokPath
 } from './navigation'
 export {
   createHighlightRegistry,

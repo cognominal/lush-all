@@ -1,23 +1,26 @@
-import type { InputToken } from '../../lush-types/index.ts'
+import type { SusyLeaf, SusyNode } from '../../lush-types/index.ts'
 
 export function serializePath(path: number[]): string {
   return JSON.stringify(path)
 }
 
-export function getTokenByPath(root: InputToken, path: number[]): InputToken | undefined {
-  let current: InputToken | undefined = root
+export function getNodeByPath(
+  root: SusyNode,
+  path: number[]
+): SusyNode | undefined {
+  let current: SusyNode | undefined = root
   for (const idx of path) {
-    const next: InputToken | undefined = current?.subTokens?.[idx]
+    const next: SusyNode | undefined = current?.kids?.[idx]
     if (!next) return undefined
     current = next
   }
   return current
 }
 
-export function isLeaf(token: InputToken): boolean {
-  return !Array.isArray(token.subTokens) || token.subTokens.length === 0
+export function isSusyLeaf(token: SusyNode): token is SusyLeaf {
+  return typeof token.text === 'string'
 }
 
-export function isInputToken(token: InputToken): boolean {
-  return isLeaf(token)
+export function isSusyTok(token: SusyNode): token is SusyLeaf {
+  return isSusyLeaf(token)
 }

@@ -1,6 +1,6 @@
-import type { InputToken } from '../../lush-types/index.ts'
+import type { SusyNode } from '../../lush-types/index.ts'
 
-export type { InputToken } from '../../lush-types/index.ts'
+export type { SusyNode } from '../../lush-types/index.ts'
 
 export type Mode = 'normal' | 'insert'
 
@@ -13,9 +13,9 @@ export type Span = {
 
 export interface StructuralEditorState {
   mode: Mode
-  root: InputToken
+  root: SusyNode
   currentPath: number[]
-  currentInputPath: number[]
+  currentTokPath: number[]
   cursorOffset: number
   projectionText: string
   spansByPath: Map<string, Span>

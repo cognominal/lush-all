@@ -1,9 +1,9 @@
-import type { InputToken, TokenTypeName } from '../../lush-types/index.ts'
+import type { SusyLeaf, SusyNode, TokenTypeName } from '../../lush-types/index.ts'
 
 let tokenIdxCounter = 0
 
-function makeToken(text: string, type: TokenTypeName): InputToken {
-  const token: InputToken = {
+function makeToken(text: string, type: TokenTypeName): SusyLeaf {
+  const token: SusyLeaf = {
     kind: 'js',
     type,
     tokenIdx: tokenIdxCounter,
@@ -13,16 +13,16 @@ function makeToken(text: string, type: TokenTypeName): InputToken {
   return token
 }
 
-function makeLine(tokens: InputToken[]): InputToken {
+function makeLine(tokens: SusyNode[]): SusyNode {
   return {
     kind: 'js',
     type: 'block-seq',
     tokenIdx: tokenIdxCounter++,
-    subTokens: [...tokens, makeToken('\n', 'punctuation')]
+    kids: [...tokens, makeToken('\n', 'punctuation')]
   }
 }
 
-export function createSampleJsTree(): InputToken {
+export function createSampleJsTree(): SusyNode {
   tokenIdxCounter = 0
 
   const line1 = makeLine([
@@ -73,6 +73,6 @@ export function createSampleJsTree(): InputToken {
     kind: 'js',
     type: 'document',
     tokenIdx: tokenIdxCounter++,
-    subTokens: [line1, line2, line3, line4, line5]
+    kids: [line1, line2, line3, line4, line5]
   }
 }

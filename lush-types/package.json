@@ -1,7 +1,7 @@
 {
   "name": "lush-types",
   "version": "0.0.1",
-  "description": "Shared TokenMultiLine shapes and helpers for lush",
+  "description": "Shared Susy types and helpers for lush",
   "type": "module",
   "private": true,
   "main": "./index.js",

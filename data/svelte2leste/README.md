@@ -1,11 +1,17 @@
 # Rule based transformations from svelte to leste
 
+
+
+This is a special case of [structural-editing](svelte-codemirror/spec.md)
+
 It is a special case of a posh susyfication, that is translating
-an astre into an InputToken trees. That leads to the corresponding posh susy.
+an astre into an InputToken tree. That leads to the corresponding posh susy.
 An astre is an augmented syntax tree.
-A posh susy  lean user editable representation.
+A posh susy is a lean user editable representation.
 A susy is posh if it uses font style as syntax.
-Here the astre is an augmented Acorn AST augmented by svelte.
+Poshification renders a `Multiline` using the highlight YAML
+(`svelte-codemirror/src/highlight.yaml`).
+Here the astre is the Svelte compiler AST (an augmented Acorn AST).
 
 We can explore this AST by going in the svelte.dev playground at 
 
@@ -19,8 +25,8 @@ We illustrate the susyfication mechanism with examples.
 To do so, we use a subset of the svelte syntax, html element attributes.
 The susy for such  attributes is  inspired by CSS and the rule mechanism
 
-`id="an_id"` translates into #an_id
-`class="class1 class 2"`` translates into`.class1 .class2`
+`id="an_id"` translates into `#an_id`
+`class="class1 class2"` translates into `.class1 .class2`
 
 This the textual part of the represenation. It is implemented by an InputToken
 tree.
@@ -60,14 +66,14 @@ The rule that handles a id attribute.
 
 ```
 
-The case of class attribute is more compless
+The case of class attribute is more complex
 
 
 ```yaml
-  -name: class  # the name must be the string "id"
+  -name: class  # the name must be the string "class"
    gen_: 
      kind: leste
-     type: id
+     type: attrclass
      text: _ $value # calls function Attribute_class with the value of the class key  
 
 ```
