@@ -12,6 +12,7 @@
 - Follow Svelte agent documentation (svelte.dev docs/llms) for Svelte changes.
 - Non-trivial UI changes should be implemented as separate components or by reusing Svelte Skeleton components.
 - As a rule of thumb, pages or components should stay at or under 300 lines; split them when they grow larger.
+- Generated `.md` output should keep lines under 80 characters.
 - When necessary access code from ~/git/sveltejs--svelte for the svelte
   compiler or ~/git/sveltejs-svelte.dev for codes examples usising svelte io
 
