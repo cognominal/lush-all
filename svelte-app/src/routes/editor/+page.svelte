@@ -500,11 +500,11 @@
       class="text-xs text-surface-400"
       role="button"
       tabindex="0"
-      onclick={() => view?.blur()}
+      onclick={() => view?.dom.blur()}
       onkeydown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
-          view?.blur()
+          view?.dom.blur()
         }
       }}
     >

@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "sync": "svelte-kit sync",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "playwright:install": "playwright install",
+    "test:e2e": "playwright test",
     "postinstall": "svelte-kit sync"
   },
   "dependencies": {
@@ -21,18 +23,20 @@
     "buffer": "^6.0.3",
     "codemirror": "^6.0.1",
     "lush-types": "file:../lush-types",
+    "marked": "^17.0.1",
     "process": "^0.11.10",
     "svelte": "^5.0.0",
     "util": "^0.12.5",
     "yaml": "file:../yaml"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@skeletonlabs/tw-plugin": "^0.4.0",
     "@sveltejs/adapter-auto": "^3.3.1",
     "@sveltejs/adapter-node": "^5.4.0",
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@types/node": "^20.11.20",
-    "@skeletonlabs/tw-plugin": "^0.4.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "svelte-check": "^4.0.0",

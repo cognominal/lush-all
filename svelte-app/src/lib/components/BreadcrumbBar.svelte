@@ -1,11 +1,16 @@
 <script lang="ts">
-  type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
+  type BreadcrumbItem = {
+    type: string
+    range: { from: number; to: number } | null
+    value?: string
+  }
   export let items: BreadcrumbItem[] = []
 
   export let onHover: ((range: { from: number; to: number } | null) => void) | undefined =
     undefined
   export let onToggle: ((range: { from: number; to: number } | null) => void) | undefined =
     undefined
+  export let onSelect: ((value: string) => void) | undefined = undefined
 </script>
 
 <div
@@ -22,7 +27,13 @@
         title={item.type}
         onmouseenter={() => onHover?.(item.range)}
         onmouseleave={() => onHover?.(null)}
-        onclick={() => onToggle?.(item.range)}
+        onclick={() => {
+          if (onSelect) {
+            onSelect(item.value ?? item.type)
+          } else {
+            onToggle?.(item.range)
+          }
+        }}
       >
         {item.type}
       </button>

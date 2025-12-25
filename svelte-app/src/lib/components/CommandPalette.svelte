@@ -76,6 +76,13 @@
     if (event.currentTarget !== event.target) return
     close()
   }
+
+  function onOverlayKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      close()
+    }
+  }
 </script>
 
 {#if open}
@@ -83,7 +90,9 @@
     class="fixed inset-0 z-50 flex items-start justify-center bg-surface-900/70 px-4 pt-24"
     role="dialog"
     aria-modal="true"
+    tabindex="-1"
     on:click={onOverlayClick}
+    on:keydown={onOverlayKeydown}
   >
     <div class="card w-full max-w-xl space-y-3 border border-surface-600/40 bg-surface-900/90 p-4">
       <div class="text-xs uppercase tracking-[0.35em] text-surface-400">Command Palette</div>

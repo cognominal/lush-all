@@ -8,6 +8,8 @@
 - Builds must be clean: no errors and no warnings.
 - For Markdown, ensure blank lines around headings and lists to avoid nvim lint errors.
 - When creating or modifying `.md` files, normalize blank lines around headings and lists in the changed Markdown files.
+- Use Svelte 5 runes style (`$state`, `$derived`, `$effect`) and avoid `$:` reactivity blocks.
+- Follow Svelte agent documentation (svelte.dev docs/llms) for Svelte changes.
 - When necessary access code from ~/git/sveltejs--svelte for the svelte
   compiler or ~/git/sveltejs-svelte.dev for codes examples usising svelte io
 
@@ -48,3 +50,4 @@ The current task is marked as "THIS THE CURRENT TASK" in the root `plan.md` or a
 
 - Write a session summary after each run in `summaries/yy/mm/dd-hh:mm.md`.
 - Use the current local time for the path; keep the summary concise and Unicode.
+- Write a daily summary in `day-summary/yy/mm/dd.md` (not gitignored) that rolls up the day's session summaries.

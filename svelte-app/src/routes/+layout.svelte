@@ -139,6 +139,15 @@
     })
 
     registerCommand({
+      id: 'open-docs',
+      label: 'Open docs',
+      group: 'Lush',
+      handler: () => {
+        void goto('/docs?path=lush.md')
+      }
+    })
+
+    registerCommand({
       id: 'open-yaml-sample',
       label: 'Open yaml_sample',
       group: 'Lush',
