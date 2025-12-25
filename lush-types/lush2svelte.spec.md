@@ -26,20 +26,20 @@ export interface CompileResult {
 ## Function name and signature
 
 ```
-export function lush2svelte(lush: Multiline) { ... }
+export function lush2svelte(lush: SusyEd) { ... } // REVIEW
 ```
 
 ## Behavior
 
 - Leste is a "posh" variant of Lush.
-- Poshification is the rendering of a `Multiline` using the highlight YAML
+- Poshification is the rendering of a `SusyEd` using the highlight YAML (REVIEW)
   file (`svelte-codemirror/src/highlight.yaml`).
 - This function currently focuses on the poshification of HTML attributes.
-- For a Svelte HTML attribute with name `id`, emit an `InputToken` of kind
+- For a Svelte HTML attribute with name `id`, emit a `SusyNode` of kind
   `lush` and type `id`.
 - For a Svelte HTML attribute with name `class`, split the attribute value on
-  spaces; for each subpart, emit an `InputToken` of kind `lush` and type
-  `attrclass`, with space separators represented as `InputToken` entries
+  spaces; for each subpart, emit a `SusyNode` of kind `lush` and type
+  `attrclass`, with space separators represented as `SusyNode` entries
   as well.
 
 ## AST placement
@@ -54,30 +54,30 @@ export function lush2svelte(lush: Multiline) { ... }
   - `ast.html.children[0].attributes` contains `Attribute` nodes.
   - `ast.html.children[0].children` contains text nodes for element content.
 
-## InputToken tree vs MultiLine mapping (clarification)
+## SusyNode tree vs SusyLines mapping (clarification)
 
-A MultiLine represents a zone of edition of a susy (/for now Leste) that compiles
+A SusyLines value represents a zone of edition of a susy (/for now Leste) that compiles
 into an astre (for now svelte).
 
-- `MultiLine` is defined in the same file as `InputToken`.
-- The mapping from an `InputToken` tree to `MultiLine` is currently unclear.
+- `SusyLines` is defined in the same file as `SusyNode`. (REVIEW)
+- The mapping from a `SusyNode` tree to `SusyLines` is currently unclear. (REVIEW)
 - Likely direction: introduce an interface that carries both:
-  - `multiline`: the existing `MultiLine` layout (textual layout/lines),
-  - `root`: the root `InputToken` for the concrete syntax tree.
-- Rationale: `MultiLine` represents layout as text, while the `InputToken` tree
-  represents the concrete syntax tree structure. 
+  - `lines`: the existing `SusyLines` layout (textual layout/lines), (REVIEW)
+  - `root`: the root `SusyNode` for the concrete syntax tree.
+- Rationale: `SusyLines` represents layout as text, while the `SusyNode` tree
+  represents the concrete syntax tree structure.
 
-## YAML rules for InputToken rendering (from svelte2leste)
+## YAML rules for SusyNode rendering (from svelte2leste)
 
 - The poshification pipeline uses YAML rule maps to transform a Svelte AST
-  (an "astre") into an `InputToken` tree (a "susy" representation).
+  (an "astre") into a `SusyNode` tree (a "susy" representation).
 - A posh susy is a lean, user-editable representation that uses font style
   as syntax.
 - Examples (attribute subset):
   - `id="an_id"` translates into `#an_id`
   - `class="class1 class2"` translates into `.class1 .class2`
-- These textual forms are represented as an `InputToken` tree; the `ast` field
-  of each `InputToken` points to the corresponding astre node.
+- These textual forms are represented as a `SusyNode` tree; the `ast` field
+  of each `SusyNode` points to the corresponding astre node.
 - Test items follow the naming convention:
   - `name.svelte.yaml`
   - `name.leste.yaml`
@@ -85,7 +85,7 @@ into an astre (for now svelte).
 - Rules are YAML maps; the transformer matches by `type` and uses the first
   matching rule.
 - Example rule for `Attribute` with name `id`:
-  - When `name: id`, `gen_` emits an `InputToken` with `kind: leste`, `type: id`,
+  - When `name: id`, `gen_` emits a `SusyNode` with `kind: leste`, `type: id`,
     and `text: $value`.
 - Example rule for `Attribute` with name `class` (more complex; uses a helper
   to split values and emit `attrclass` tokens).
@@ -93,5 +93,5 @@ into an astre (for now svelte).
 
 ## UNSPECIFIED
 
-- The exact `Multiline` type alias or shape in this context.
+- The exact `SusyEd`/`SusyLines` type alias or shape in this context. (REVIEW)
 - The concrete expected AST structure beyond the attribute-level rules above.

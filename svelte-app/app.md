@@ -25,9 +25,9 @@ UI backed by `yaml/` (this repo) + `lush-types/`.
   - Highlights the corresponding node span in the editor.
   - Also drives the right pane’s “selected token” display (see below).
 
-### Right pane: selected `InputToken` as YAML
+### Right pane: selected `SusyNode` as YAML
 
-- Shows a YAML serialization of the currently selected `lush-types` `InputToken`.
+- Shows a YAML serialization of the currently selected `lush-types` `SusyNode`.
 - The selection for this pane is driven by:
   - the cursor position, unless
   - you are hovering a breadcrumb, in which case it uses the hovered
@@ -36,7 +36,7 @@ UI backed by `yaml/` (this repo) + `lush-types/`.
 
 ## How It Works (high level)
 
-- `yaml/lushify()` is used to generate a `TokenMultiLine` from the YAML text
+- `yaml/lushify()` is used to generate `SusyLines` from the YAML text (REVIEW)
   (the “lushified” multiline token structure).
 - `yaml/parseDocument(..., { keepSourceTokens: true })` is used to get nodes with
   source ranges and CST token types, which are used to:

@@ -35,7 +35,7 @@ of the UI used. We hope to eventually support a TUI (we did in rdline/lush), in 
 Lushed, our susyed, is a mostly structural editor that updates an underlying
 AST. An instance of the `SusyEd` interface stores the data for a lushed.
 
-Note: SusyEd was previously `MultiLine` or `TokenMultiLine`. `InputToken` has
+Note: SusyEd replaces the previous multiline editor state. (REVIEW) `SusyNode` has
 been split into two types: `SusyTok` and `SusyNode`.
 
 `SusyEd` maintains two complementary views of the same data: `root` as a tree
@@ -61,7 +61,7 @@ interface SusyINode {
   type: TokenTypeName
   tokenIdx: number
   text?: string
-//  ref?: InputToken
+//  ref?: SusyNode
   kids?: SusyNode[]
   x?: number
   completion?: CompletionTokenMetadata

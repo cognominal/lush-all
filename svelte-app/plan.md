@@ -5,7 +5,7 @@
 Create a SvelteKit app in `svelte-app/` that:
 
 - Shows a CodeMirror editor containing `YAML_SAMPLE`.
-- Uses `yaml/lushify` to generate the `TokenMultiLine` structure (from `lush-types/`) from `YAML_SAMPLE`.
+- Uses `yaml/lushify` to generate the `SusyLines` structure (from `lush-types/`) from `YAML_SAMPLE`. (REVIEW)
 - Displays a breadcrumb bar under the editor showing the **type path** from the root document node to the **currently selected item** (cursor-based).
 - Adds interactions:
   - Hover a breadcrumb → highlight the corresponding YAML span in the editor.
@@ -22,7 +22,7 @@ Create a SvelteKit app in `svelte-app/` that:
    - New module (no Svelte imports) responsible for:
      - Loading `YAML_SAMPLE`.
      - Parsing YAML with source ranges enabled.
-     - Calling `lushify` to produce `TokenMultiLine`.
+    - Calling `lushify` to produce `SusyLines`. (REVIEW)
      - Translating cursor offsets into a “deepest node path” and emitting breadcrumbs.
    - Breadcrumb items include both:
      - `type` (for display)
@@ -47,4 +47,3 @@ Create a SvelteKit app in `svelte-app/` that:
 - `svelte-app/src/lib/components/YamlEditor.svelte` (CodeMirror editor + highlight + fold toggling).
 - `svelte-app/src/lib/components/BreadcrumbBar.svelte` (display + hover/click events).
 - `svelte-app/src/routes/+page.svelte` (wiring).
-

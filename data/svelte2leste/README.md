@@ -5,7 +5,7 @@
 This is a special case of [structural-editing](svelte-codemirror/spec.md)
 
 It is a special case of a posh susyfication, that is translating
-an astre into an InputToken tree. That leads to the corresponding posh susy.
+an astre into a SusyNode tree. That leads to the corresponding posh susy.
 An astre is an augmented syntax tree.
 A posh susy is a lean user editable representation.
 A susy is posh if it uses font style as syntax.
@@ -18,7 +18,7 @@ We can explore this AST by going in the svelte.dev playground at
 [https://svelte.dev/playground](https://svelte.dev/playground).
 ![<h1 id="an_id">tutu</h1>](imgs/elt-id/)
 
-The posh susy implementation uses an InputToken tree. The ast field of
+The posh susy implementation uses a SusyNode tree. The ast field of
 an input token points to the corresponding node in the astre.
 
 We illustrate the susyfication mechanism with examples.
@@ -28,7 +28,7 @@ The susy for such  attributes is  inspired by CSS and the rule mechanism
 `id="an_id"` translates into `#an_id`
 `class="class1 class2"` translates into `.class1 .class2`
 
-This the textual part of the represenation. It is implemented by an InputToken
+This the textual part of the represenation. It is implemented by a SusyNode
 tree.
 
 The test items are of the form
@@ -47,7 +47,7 @@ value:
 
 Given a type key, the transformer tries to match the rules for that type 
 and use the first rule that matches. A rule transform a node or a subtree 
-into an InputToken tree.
+into a SusyNode tree.
 
 A rule is a map. The value 
 associated to the gen_ key describe the transformation.

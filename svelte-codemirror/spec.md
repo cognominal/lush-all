@@ -16,7 +16,7 @@ Use `lush-type` package.
 This `svelte-codemirror` package  is used to implement a new page with route
 `/editor` using
 a new `editor` component.
-It will contain a five line js sample file as an InputToken
+It will contain a five line js sample file as a SusyNode
 tree highlighted as specified below.
 Any js keyword will be a js.keyword as per the yaml file.
 Other alphanumerics starting by a letter will be a js.variable.
@@ -48,46 +48,49 @@ Implement a structural editor as a SvelteKit page using CodeMirror as the view
 layer, with a modal interaction model inspired by Vim:
 
 - Normal mode for navigation across a structured token tree.
-- Insert mode for editing the text of a single input token.
+- Insert mode for editing the text of a single SusyTok.
 
 For now, only the keybindings specified in this document must be active.
 Everything else should behave as inert text editing (i.e., do not allow
 CodeMirror default keymaps to introduce extra behavior outside the defined
 bindings).
 
-The edited document is represented as a tree of InputToken nodes. Navigation
+The edited document is represented as a tree of SusyNode nodes. Navigation
 and editing must respect this structure.
 
-Implementation: `serializePath`, `getTokenByPath`, `isLeaf`, and `isInputToken`
+Implementation: `serializePath`, `getNodeByPath`, `isSusyLeaf`, and `isSusyTok`
 provide core tree utilities in
 [svelte-codemirror/src/tree.ts](svelte-codemirror/src/tree.ts) (functions:
 [serializePath](svelte-codemirror/src/tree.ts#L3),
-[getTokenByPath](svelte-codemirror/src/tree.ts#L7),
-[isLeaf](svelte-codemirror/src/tree.ts#L17),
-[isInputToken](svelte-codemirror/src/tree.ts#L21)).
+[getNodeByPath](svelte-codemirror/src/tree.ts#L7),
+[isSusyLeaf](svelte-codemirror/src/tree.ts#L17),
+[isSusyTok](svelte-codemirror/src/tree.ts#L21)).
 
 ## 2. Core Data Model
 
-The editor's canonical state is a rooted tree of InputToken:
+The editor's canonical state is a rooted tree of SusyNode:
 
 ```ts
-export interface InputToken {
+export interface SusyINode {
   kind: LushTokenKind
   type: TokenTypeName
   tokenIdx: number
   text?: string
-  subTokens?: InputToken[]
+  kids?: SusyNode[]
   x?: number
   completion?: CompletionTokenMetadata
 }
+
+type SusyLeaf = SusyINode & { text: string }
+type SusyNode = SusyINode | SusyLeaf
 ```
 
 ### 2.1 Terminology
 
-- Token node: an InputToken instance.
-- Leaf token: a token without subTokens or with subTokens.length === 0.
-- InputToken (editable token): tokens eligible for direct text entry. In this
-  version, treat leaf tokens as input tokens unless specified otherwise later.
+- Token node: a SusyNode instance.
+- Leaf token: a SusyLeaf/SusyTok node (no kids).
+- SusyTok (editable token): tokens eligible for direct text entry. In this
+  version, treat leaf tokens as SusyToks unless specified otherwise later.
 - Token path: an address from root to a node, e.g. array of indices [2, 0, 5].
 - Current token: the token that is currently "focused" for navigation/editing.
 - Cursor: an offset within a token's text (insert mode only).
@@ -107,7 +110,7 @@ The source of truth is the token tree.
 
 ### 3.2 Single source of truth
 
-- Canonical state: InputToken tree.
+- Canonical state: SusyNode tree.
 - CodeMirror content: a projection of that tree to a string.
 
 Any edits in insert mode must be re-applied back to the targeted token node,
@@ -209,14 +212,14 @@ type Mode = "normal" | "insert"
 
 interface StructuralEditorState {
   mode: Mode
-  root: InputToken
+  root: SusyNode
 
   // navigation
   currentPath: number[] // path to current token (focused)
-  currentInputPath: number[] // path to current input token (leaf) used for Tab
+  currentInputPath: number[] // path to current SusyTok (leaf) used for Tab
   // navigation
 
-  // insert-mode cursor inside current input token text
+  // insert-mode cursor inside current SusyTok text
   cursorOffset: number // 0..len(text)
 
   // mapping derived from projection
@@ -239,9 +242,9 @@ Behavior:
 
 - Escape:
   - switch to normal mode
-  - ensure CodeMirror selection/cursor snaps to the whole input token span or to
+- ensure CodeMirror selection/cursor snaps to the whole SusyTok span or to
     a stable anchor (see below)
-- Cursor movement is restricted to the current input token:
+- Cursor movement is restricted to the current SusyTok:
   - The user must not be able to move the caret outside the current input
     token's textFrom..textTo.
   - If CodeMirror selection changes outside allowed range, immediately clamp it
@@ -266,8 +269,8 @@ Behavior:
 - i:
   - switch to insert mode
   - set currentInputPath to:
-    - the current token if it is an input token
-    - otherwise the "nearest" input token in its subtree:
+    - the current token if it is a SusyTok
+    - otherwise the "nearest" SusyTok in its subtree:
       - prefer first leaf in DFS order
   - set cursorOffset to end of token text (or 0; choose one and keep consistent;
     recommend end)
@@ -279,20 +282,20 @@ Behavior:
   - go one step deep in the tree (same behavior as Enter for now; keep both
     bindings wired distinctly so they can diverge later)
 - Tab:
-  - go to next input token in document order (DFS left-to-right).
+  - go to next SusyTok in document order (DFS left-to-right).
   - update currentInputPath and currentPath to that token.
   - update CodeMirror selection to that token's span.
 - Shift+Tab:
-  - go to previous input token in document order.
+  - go to previous SusyTok in document order.
   - update paths + selection similarly.
 - Inactive keys:
   - All other keys do nothing (do not fall back to CodeMirror defaults).
 
 ## 8. Document Order and Navigation
 
-### 8.1 Document order for input tokens
+### 8.1 Document order for SusyTok nodes
 
-Define a function that lists all input tokens in DFS order:
+Define a function that lists all SusyTok nodes in DFS order:
 
 - Visit node:
   - if leaf: include it
@@ -326,9 +329,9 @@ Previous:
 
 In normal mode:
 
-- If current token has subTokens and length > 0:
+- If current token has kids and length > 0:
   - currentPath = currentPath + [0]
-- If the new current token is not an input token, selection should reflect the
+- If the new current token is not a SusyTok, selection should reflect the
   whole node span.
 - If no children: no-op.
 
@@ -346,7 +349,7 @@ Policy:
 
 ### 9.2 Insert mode cursor
 
-Insert mode shows an actual caret inside the current input token:
+Insert mode shows an actual caret inside the current SusyTok:
 
 - caret position = textFrom + cursorOffset.
 - selection should be collapsed (anchor=head).
@@ -404,7 +407,7 @@ Implement a decoration set:
   - navigation.ts (DFS order, next/prev, descend)
   - highlight.ts (yaml parsing, chalk-chain->css)
   - keymap.ts (mode-aware handlers)
-  - types.ts (InputToken + helper types)
+  - types.ts (SusyNode + helper types)
 
 ### 11.2 Loading highlight.yaml
 
@@ -421,7 +424,7 @@ Requirement:
 
 ### 12.1 Tokens with missing text
 
-In insert mode, if the current input token has text === undefined:
+In insert mode, if the current SusyTok has text === undefined:
 
 - treat it as "" and initialize on first insertion.
 
@@ -429,7 +432,7 @@ In insert mode, if the current input token has text === undefined:
 
 Some tokens may project to empty strings.
 
-For navigation (Tab / Shift+Tab), still allow focusing them if they are input
+For navigation (Tab / Shift+Tab), still allow focusing them if they are SusyTok
 tokens, but:
 
 - selection span is empty; provide a minimum-width caret marker decoration to
@@ -437,9 +440,9 @@ tokens, but:
 
 ### 12.3 Non-leaf editable tokens (future-proofing)
 
-The current spec defines input tokens as leaf tokens. If later expanded:
+The current spec defines SusyToks as leaf tokens. If later expanded:
 
-- add a predicate isInputToken(token): boolean and use it everywhere.
+- add a predicate isSusyTok(token): boolean and use it everywhere.
 
 ## 13. Acceptance Criteria
 
@@ -448,19 +451,19 @@ The current spec defines input tokens as leaf tokens. If later expanded:
 - Pressing i in normal mode always enters insert mode.
 - Pressing Esc in insert mode always returns to normal mode.
 - In normal mode, typing letters does not modify content.
-- In insert mode, printable characters modify only the current input token.
+- In insert mode, printable characters modify only the current SusyTok.
 
 ### 13.2 Cursor restriction
 
-- In insert mode, the caret cannot move outside the current input token,
+- In insert mode, the caret cannot move outside the current SusyTok,
   regardless of mouse clicks or arrow keys.
 - If the user attempts to place the caret elsewhere, it snaps back to the
   nearest valid offset inside the token.
 
 ### 13.3 Navigation
 
-- Tab moves focus to the next input token in DFS order.
-- Shift+Tab moves focus to the previous input token in DFS order.
+- Tab moves focus to the next SusyTok in DFS order.
+- Shift+Tab moves focus to the previous SusyTok in DFS order.
 - Enter descends to the first child if any.
 - Shift+Enter behaves the same as Enter for now.
 
@@ -480,8 +483,8 @@ The current spec defines input tokens as leaf tokens. If later expanded:
 
 - Define helpers:
   - serializePath(path): string
-  - getTokenByPath(root, path): InputToken
-  - isLeaf(token) and isInputToken(token) (initially leaf)
+  - getNodeByPath(root, path): SusyNode
+  - isSusyLeaf(token) and isSusyTok(token) (initially leaf)
 - Projection:
   - project(root) -> { text, spansByPath, inputTokenPaths }
 - Highlight loading:
@@ -498,8 +501,8 @@ The current spec defines input tokens as leaf tokens. If later expanded:
   - enterInsertMode()
   - enterNormalMode()
 - Navigation actions:
-  - focusNextInputToken()
-  - focusPrevInputToken()
+  - focusNextTok() (REVIEW)
+  - focusPrevTok() (REVIEW)
   - descend()
 - Insert action:
   - insertChar(ch)

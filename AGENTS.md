@@ -20,7 +20,7 @@
 ## Repo layout
 
 - `lush-types/`: shared TS types/helpers (Vitest). Our code is build around trees
-  of InputToken, and TokenMultiLine.
+  of SusyNode, and SusyLines.
 - `lush-term-editor/`: editor experiments (TypeScript `strict`, Vitest).
 - `yaml/`: fork/vendor of `eemeli/yaml` (has Vitest available, but also legacy Jest + ESLint + Rollup).
 - `svelte-app/`: SvelteKit app (Vite build + `svelte-check`, uses `@sveltejs/adapter-node`).

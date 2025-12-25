@@ -15,7 +15,7 @@ create a language called lush.
 It will be edited with our structural editor which update the underlying `Multiline` structure.
 A lush file will be saved as `.lush.yaml` file using a new function `LushAsYaml`
 which will call `tokenInutAsYaml` on the root token. So tokenInputAsYaml will below
-adapted to accept a InputToken as well as parameter.
+adapted to accept a SusyNode as well as parameter.
 
 ## Approach
 

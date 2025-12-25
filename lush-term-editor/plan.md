@@ -6,13 +6,13 @@
 
 - Goals
   - Borrow/adapt editing + event patterns from `~/mine/rdln-lush/src/tokenEdit.ts` and `src/editor.ts`.
-  - Define `type MultiLines = Multiline[]` (alias of `TokenMultiLine`) and bootstrap with sample YAML tokens.
+  - Use `SusyLines` (alias of `SusyLine[]`) and bootstrap with sample YAML tokens. (REVIEW)
   - On Return inside a sequence item, splice an empty array item after the current line.
-  - Maintain a second `Multiline` view showing the JS structure (like `console.dir` / `util.inspect` of parsed YAML).
+  - Maintain a second `SusyLines` view showing the JS structure (like `console.dir` / `util.inspect` of parsed YAML). (REVIEW)
 
 - Architecture
-  - State: `{ lines: MultiLines; jsView: MultiLines; cursor: { lineIdx; colIdx } }`.
-  - Primary text derived from `lines` via `lineToText`; rebuild JS view by parsing YAML text to JS then `util.inspect` -> `stringToTokenMultiLine`.
+  - State: `{ lines: SusyLines; jsView: SusyLines; cursor: { lineIdx; colIdx } }`. (REVIEW)
+  - Primary text derived from `lines` via `lineToText`; rebuild JS view by parsing YAML text to JS then `util.inspect` -> `stringToSusyLines`. (REVIEW)
   - Event helpers (borrowed patterns): insert text into a line, normalize positions, handle Return by `insertEmptyArrayItem`, move cursor to new line start.
   - Rendering (minimal): pure functions to render lines as strings and show cursor; no full TUI yet.
 
