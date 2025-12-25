@@ -1,9 +1,5 @@
-<script lang="ts">
-  import { goto } from '$app/navigation'
-  import { onMount } from 'svelte'
-  import SearchHistoryDropdown from '$lib/components/SearchHistoryDropdown.svelte'
-
-  type SearchState = {
+<script lang="ts" module>
+  export interface SearchState {
     query: string
     scope: 'files' | 'docs'
     mode: 'text' | 'regex'
@@ -13,12 +9,36 @@
     error?: string
   }
 
-  type Props = {
+  export interface Props {
     selectedPath: string | null
     search?: SearchState | null
   }
+</script>
 
-  const { selectedPath, search } = $props<Props>()
+<script lang="ts">
+  import { goto } from '$app/navigation'
+  import { onMount } from 'svelte'
+  import SearchHistoryDropdown from '$lib/components/SearchHistoryDropdown.svelte'
+
+  interface SearchState {
+    query: string
+    scope: 'files' | 'docs'
+    mode: 'text' | 'regex'
+    caseSensitive: boolean
+    dailyOnly: boolean
+    count: number
+    error?: string
+  }
+
+  interface SearchHistoryEntry {
+    query: string
+    scope: 'files' | 'docs'
+    mode: 'text' | 'regex'
+    caseSensitive: boolean
+    dailyOnly: boolean
+  }
+
+  let { selectedPath, search } = $props()
 
   let query = $state('')
   let scope = $state<'files' | 'docs'>('files')
@@ -28,14 +48,6 @@
   let history = $state<SearchHistoryEntry[]>([])
   let historyIndex = $state<number | null>(null)
   let showHistory = $state(false)
-
-  type SearchHistoryEntry = {
-    query: string
-    scope: 'files' | 'docs'
-    mode: 'text' | 'regex'
-    caseSensitive: boolean
-    dailyOnly: boolean
-  }
 
   const HISTORY_KEY = 'docs-search-history'
   const HISTORY_LIMIT = 50

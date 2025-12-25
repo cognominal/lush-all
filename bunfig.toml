@@ -1,0 +1,2 @@
+[test]
+exclude = ["svelte-app/tests/**"]

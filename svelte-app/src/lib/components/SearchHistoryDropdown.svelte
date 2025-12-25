@@ -1,20 +1,22 @@
-<script lang="ts">
-  type SearchHistoryEntry = {
-    query: string
-    scope: 'files' | 'docs'
-    mode: 'text' | 'regex'
-    caseSensitive: boolean
-    dailyOnly: boolean
-  }
-
-  type Props = {
+<script lang="ts" module>
+  export interface Props {
     entries: SearchHistoryEntry[]
     open: boolean
     highlightedIndex: number | null
     onSelect: (entry: SearchHistoryEntry) => void
   }
 
-  const { entries, open, highlightedIndex, onSelect } = $props<Props>()
+  export interface SearchHistoryEntry {
+    query: string
+    scope: 'files' | 'docs'
+    mode: 'text' | 'regex'
+    caseSensitive: boolean
+    dailyOnly: boolean
+  }
+</script>
+
+<script lang="ts">
+  let { entries, open, highlightedIndex, onSelect } = $props()
 </script>
 
 {#if open && entries.length > 0}
