@@ -10,6 +10,8 @@
 - When creating or modifying `.md` files, normalize blank lines around headings and lists in the changed Markdown files.
 - Use Svelte 5 runes style (`$state`, `$derived`, `$effect`) and avoid `$:` reactivity blocks.
 - Follow Svelte agent documentation (svelte.dev docs/llms) for Svelte changes.
+- Non-trivial UI changes should be implemented as separate components or by reusing Svelte Skeleton components.
+- As a rule of thumb, pages or components should stay at or under 300 lines; split them when they grow larger.
 - When necessary access code from ~/git/sveltejs--svelte for the svelte
   compiler or ~/git/sveltejs-svelte.dev for codes examples usising svelte io
 

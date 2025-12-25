@@ -148,6 +148,8 @@ type SearchState = {
   query: string
   scope: SearchScope
   mode: SearchMode
+  caseSensitive: boolean
+  dailyOnly: boolean
   count: number
   error?: string
 }
@@ -239,8 +241,12 @@ export const load: PageServerLoad = async ({ url }) => {
   const searchQuery = url.searchParams.get('q')?.trim() ?? ''
   const scopeParam = url.searchParams.get('scope')
   const modeParam = url.searchParams.get('mode')
+  const caseParam = url.searchParams.get('case')
+  const dailyParam = url.searchParams.get('daily')
   const scope: SearchScope = scopeParam === 'docs' ? 'docs' : 'files'
   const mode: SearchMode = modeParam === 'regex' ? 'regex' : 'text'
+  const caseSensitive = caseParam === 'sensitive'
+  const dailyOnly = dailyParam === '1'
 
   let search: SearchState | null = null
   let matchPaths: Set<string> | null = null
@@ -251,14 +257,15 @@ export const load: PageServerLoad = async ({ url }) => {
     let matcher: ((text: string) => boolean) | null = null
     if (mode === 'regex') {
       try {
-        const regex = new RegExp(searchQuery, 'i')
+        const regex = new RegExp(searchQuery, caseSensitive ? '' : 'i')
         matcher = (text) => regex.test(text)
       } catch (err) {
         errorMsg = err instanceof Error ? err.message : 'Invalid regex'
       }
     } else {
-      const needle = searchQuery.toLowerCase()
-      matcher = (text) => text.toLowerCase().includes(needle)
+      const needle = caseSensitive ? searchQuery : searchQuery.toLowerCase()
+      matcher = (text) =>
+        caseSensitive ? text.includes(needle) : text.toLowerCase().includes(needle)
     }
 
     const files = collectFiles(tree)
@@ -266,6 +273,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
     if (matcher) {
       for (const path of files) {
+        if (dailyOnly && !path.startsWith('day-summary/')) continue
         if (scope === 'files') {
           if (matcher(path)) matchPaths.add(path)
         } else {
@@ -281,6 +289,8 @@ export const load: PageServerLoad = async ({ url }) => {
       query: searchQuery,
       scope,
       mode,
+      caseSensitive,
+      dailyOnly,
       count: matcher && matchPaths ? matchPaths.size : 0,
       error: errorMsg
     }
