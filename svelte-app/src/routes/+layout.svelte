@@ -257,12 +257,12 @@
   })
 </script>
 
-<div class="flex min-h-screen w-full flex-col">
+<div class="flex h-screen w-full flex-col">
   {#if !isTauri}
     <SvelteDevMenuBar spec={LUSH_MENU_BAR} homeLabel="lush" showHome={false} />
   {/if}
 
-  <div class="flex-1 min-h-0 w-full">
+  <div class="flex-1 min-h-0 w-full overflow-hidden">
     <slot />
   </div>
 </div>

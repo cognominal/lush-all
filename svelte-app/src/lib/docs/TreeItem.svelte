@@ -32,7 +32,7 @@
   let buttonEl: HTMLButtonElement | null = null
 
   $effect(() => {
-    if (isFocused) {
+    if (isFocused || isActive) {
       void tick().then(() => buttonEl?.scrollIntoView({ block: 'center' }))
     }
   })

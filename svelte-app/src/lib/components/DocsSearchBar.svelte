@@ -230,14 +230,20 @@
       <button
         type="button"
         class={`rounded-full px-3 py-1 ${scope === 'files' ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
-        onclick={() => (scope = 'files')}
+        onclick={() => {
+          scope = 'files'
+          submitSearch()
+        }}
       >
         Filenames
       </button>
       <button
         type="button"
         class={`rounded-full px-3 py-1 ${scope === 'docs' ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
-        onclick={() => (scope = 'docs')}
+        onclick={() => {
+          scope = 'docs'
+          submitSearch()
+        }}
       >
         Docs
       </button>
@@ -246,14 +252,20 @@
       <button
         type="button"
         class={`rounded-full px-3 py-1 ${mode === 'text' ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
-        onclick={() => (mode = 'text')}
+        onclick={() => {
+          mode = 'text'
+          submitSearch()
+        }}
       >
         Text
       </button>
       <button
         type="button"
         class={`rounded-full px-3 py-1 ${mode === 'regex' ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
-        onclick={() => (mode = 'regex')}
+        onclick={() => {
+          mode = 'regex'
+          submitSearch()
+        }}
       >
         Regex
       </button>

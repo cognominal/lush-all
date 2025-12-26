@@ -19,6 +19,8 @@ function isWithinRoot(value: string): boolean {
 
 const EXTERNAL_PROTOCOL = /^[a-zA-Z][a-zA-Z0-9+.-]*:/
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
+const HIGHLIGHT_OPEN = '[[H]]'
+const HIGHLIGHT_CLOSE = '[[/H]]'
 
 type ResolvedLink = {
   href: string
@@ -78,6 +80,13 @@ function resolveDocHref(href: string, basePath: string | null): ResolvedLink {
 function buildRenderer(basePath: string | null) {
   const renderer = new marked.Renderer()
 
+  const applyHighlight = (value: string) =>
+    value
+      .split(HIGHLIGHT_OPEN)
+      .join('<span class="text-rose-400">')
+      .split(HIGHLIGHT_CLOSE)
+      .join('</span>')
+
   renderer.heading = function (token) {
     const base = 'font-semibold text-slate-50'
     const sizes: Record<number, string> = {
@@ -113,11 +122,15 @@ function buildRenderer(basePath: string | null) {
   }
 
   renderer.codespan = (token) =>
-    `<code class="rounded bg-slate-800/70 px-1 py-0.5 text-xs text-amber-200">${token.text}</code>`
+    `<code class="rounded bg-slate-800/70 px-1 py-0.5 text-xs text-amber-200">${applyHighlight(
+      token.text
+    )}</code>`
 
   renderer.code = function (token) {
     const language = token.lang ? `language-${token.lang}` : 'language-text'
-    return `<pre class="mt-4 overflow-auto rounded-lg border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-200"><code class="${language}">${token.text}</code></pre>`
+    return `<pre class="mt-4 overflow-auto rounded-lg border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-200"><code class="${language}">${applyHighlight(
+      token.text
+    )}</code></pre>`
   }
 
   renderer.blockquote = function (token) {
@@ -141,6 +154,17 @@ function buildRenderer(basePath: string | null) {
   return renderer
 }
 
+function hasFile(tree: FileNode[], target: string): boolean {
+  for (const node of tree) {
+    if (node.type === 'file') {
+      if (node.path === target) return true
+    } else if (node.children && hasFile(node.children, target)) {
+      return true
+    }
+  }
+  return false
+}
+
 type SearchScope = 'files' | 'docs'
 type SearchMode = 'text' | 'regex'
 
@@ -152,6 +176,244 @@ type SearchState = {
   dailyOnly: boolean
   count: number
   error?: string
+}
+
+type LineMatch = { line: number; start: number; end: number }
+
+type MatchGroup = {
+  startLine: number
+  endLine: number
+  firstMatchLine: number
+  lastMatchLine: number
+}
+
+type FileMatches = {
+  path: string
+  lines: string[]
+  groups: MatchGroup[]
+  matchesByLine: Map<number, LineMatch[]>
+}
+
+function buildRegexMatcher(query: string, caseSensitive: boolean): RegExp {
+  return new RegExp(query, caseSensitive ? 'g' : 'gi')
+}
+
+function findLineMatches(
+  lines: string[],
+  query: string,
+  mode: SearchMode,
+  caseSensitive: boolean
+): Map<number, LineMatch[]> {
+  const matches = new Map<number, LineMatch[]>()
+  if (!query) return matches
+
+  if (mode === 'regex') {
+    const regex = buildRegexMatcher(query, caseSensitive)
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex]
+      regex.lastIndex = 0
+      let match = regex.exec(line)
+      while (match) {
+        const value = match[0]
+        if (!value) break
+        const start = match.index
+        const end = start + value.length
+        const lineMatches = matches.get(lineIndex) ?? []
+        lineMatches.push({ line: lineIndex, start, end })
+        matches.set(lineIndex, lineMatches)
+        match = regex.exec(line)
+      }
+    }
+    return matches
+  }
+
+  const needle = caseSensitive ? query : query.toLowerCase()
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex]
+    const haystack = caseSensitive ? line : line.toLowerCase()
+    let fromIndex = 0
+    while (fromIndex < haystack.length) {
+      const found = haystack.indexOf(needle, fromIndex)
+      if (found === -1) break
+      const end = found + needle.length
+      const lineMatches = matches.get(lineIndex) ?? []
+      lineMatches.push({ line: lineIndex, start: found, end })
+      matches.set(lineIndex, lineMatches)
+      fromIndex = end
+    }
+  }
+  return matches
+}
+
+function groupMatches(
+  matchesByLine: Map<number, LineMatch[]>,
+  totalLines: number
+): MatchGroup[] {
+  const matchLines = Array.from(matchesByLine.keys()).sort((a, b) => a - b)
+  if (matchLines.length === 0) return []
+
+  const groups: MatchGroup[] = []
+  let current: MatchGroup | null = null
+
+  for (const line of matchLines) {
+    const windowStart = Math.max(0, line - 3)
+    const windowEnd = Math.min(totalLines - 1, line + 3)
+
+    if (!current) {
+      current = {
+        startLine: windowStart,
+        endLine: windowEnd,
+        firstMatchLine: line,
+        lastMatchLine: line
+      }
+      continue
+    }
+
+    if (line - current.lastMatchLine <= 6) {
+      current.endLine = Math.max(current.endLine, windowEnd)
+      current.lastMatchLine = line
+    } else {
+      groups.push(current)
+      current = {
+        startLine: windowStart,
+        endLine: windowEnd,
+        firstMatchLine: line,
+        lastMatchLine: line
+      }
+    }
+  }
+
+  if (current) groups.push(current)
+  return groups
+}
+
+function highlightLine(
+  line: string,
+  matches: LineMatch[] | undefined
+): string {
+  if (!matches || matches.length === 0) return line
+  const sorted = matches.slice().sort((a, b) => a.start - b.start)
+  let cursor = 0
+  let output = ''
+  for (const match of sorted) {
+    const start = Math.max(match.start, cursor)
+    const end = Math.max(match.end, start)
+    if (start > cursor) {
+      output += line.slice(cursor, start)
+    }
+    output += `${HIGHLIGHT_OPEN}${line.slice(start, end)}${HIGHLIGHT_CLOSE}`
+    cursor = end
+  }
+  output += line.slice(cursor)
+  return output
+}
+
+function findSafeSplitIndex(
+  value: string,
+  maxLength: number
+): number {
+  if (value.length <= maxLength) return value.length
+  const split = value.lastIndexOf(' ', maxLength)
+  if (split > 0) return split
+  return maxLength
+}
+
+function pushWrapped(
+  out: string[],
+  prefix: string,
+  content: string,
+  maxLen: number
+): void {
+  const available = Math.max(1, maxLen - prefix.length)
+  let remaining = content
+  let first = true
+  while (remaining.length > 0) {
+    const sliceLen = findSafeSplitIndex(remaining, available)
+    const chunk = remaining.slice(0, sliceLen)
+    out.push(`${first ? prefix : ' '.repeat(prefix.length)}${chunk}`)
+    remaining = remaining.slice(sliceLen).replace(/^ /, '')
+    first = false
+  }
+  if (content.length === 0) {
+    out.push(prefix.trimEnd())
+  }
+}
+
+function shortenLabel(label: string, maxLen: number): string {
+  if (label.length <= maxLen) return label
+  return `…${label.slice(label.length - (maxLen - 1))}`
+}
+
+function buildSearchMarkdown(
+  fileMatches: FileMatches[],
+  query: string
+): string {
+  const lines: string[] = []
+  lines.push('# Search results')
+  pushWrapped(lines, '', `for "${query}"`, 79)
+  lines.push('')
+
+  let linkIndex = 0
+  for (const file of fileMatches) {
+    for (const group of file.groups) {
+      const link = `/docs?path=${encodeURIComponent(file.path)}#L${group.firstMatchLine + 1}`
+      const label = shortenLabel(file.path, 60)
+      const refId = `r${linkIndex}`
+      linkIndex += 1
+      lines.push(`## [${label}][${refId}]`)
+      pushWrapped(lines, `[${refId}]: `, link, 79)
+      lines.push('')
+      lines.push('```')
+
+      for (let lineIndex = group.startLine; lineIndex <= group.endLine; lineIndex += 1) {
+        const lineMatches = file.matchesByLine.get(lineIndex)
+        const highlighted = highlightLine(file.lines[lineIndex] ?? '', lineMatches)
+        const prefix = `${String(lineIndex + 1).padStart(4, ' ')} | `
+        pushWrapped(lines, prefix, highlighted, 79)
+      }
+
+      lines.push('```')
+      lines.push('')
+    }
+  }
+
+  return lines.join('\n')
+}
+
+function buildFileListMarkdown(
+  paths: string[],
+  query: string
+): string {
+  const lines: string[] = []
+  lines.push('# Search results')
+  pushWrapped(lines, '', `for "${query}"`, 79)
+  lines.push('')
+
+  let linkIndex = 0
+  for (const path of paths) {
+    const link = `/docs?path=${encodeURIComponent(path)}`
+    const label = shortenLabel(path, 60)
+    const refId = `r${linkIndex}`
+    linkIndex += 1
+    lines.push(`## [${label}][${refId}]`)
+    pushWrapped(lines, `[${refId}]: `, link, 79)
+    lines.push('')
+    lines.push('```')
+    pushWrapped(lines, '', 'Filename match.', 79)
+    lines.push('```')
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+function buildNoMatchesMarkdown(query: string): string {
+  const lines: string[] = []
+  lines.push('# Search results')
+  pushWrapped(lines, '', `for "${query}"`, 79)
+  lines.push('')
+  lines.push('No matches.')
+  return lines.join('\n')
 }
 
 function sortNodes(nodes: FileNode[]): FileNode[] {
@@ -251,6 +513,7 @@ export const load: PageServerLoad = async ({ url }) => {
   let search: SearchState | null = null
   let matchPaths: Set<string> | null = null
   let filteredTree = tree
+  let searchContent: string | null = null
 
   if (searchQuery) {
     let errorMsg: string | undefined
@@ -270,15 +533,28 @@ export const load: PageServerLoad = async ({ url }) => {
 
     const files = collectFiles(tree)
     matchPaths = new Set<string>()
+    const fileMatches: FileMatches[] = []
+    let totalMatches = 0
 
     if (matcher) {
       for (const path of files) {
-        if (dailyOnly && !path.startsWith('day-summary/')) continue
+        if (path.startsWith('day-summary/')) continue
         if (scope === 'files') {
           if (matcher(path)) matchPaths.add(path)
         } else {
           const { content } = await readMarkdownSafe(path)
-          if (content && matcher(content)) matchPaths.add(path)
+          if (content && matcher(content)) {
+            matchPaths.add(path)
+            const lines = content.split(/\r?\n/)
+            const matchesByLine = findLineMatches(lines, searchQuery, mode, caseSensitive)
+            const groups = groupMatches(matchesByLine, lines.length)
+            for (const list of matchesByLine.values()) {
+              totalMatches += list.length
+            }
+            if (groups.length > 0) {
+              fileMatches.push({ path, lines, groups, matchesByLine })
+            }
+          }
         }
       }
     }
@@ -291,8 +567,16 @@ export const load: PageServerLoad = async ({ url }) => {
       mode,
       caseSensitive,
       dailyOnly,
-      count: matcher && matchPaths ? matchPaths.size : 0,
+      count: scope === 'docs' ? totalMatches : (matcher && matchPaths ? matchPaths.size : 0),
       error: errorMsg
+    }
+
+    if (scope === 'docs' && fileMatches.length > 0) {
+      searchContent = buildSearchMarkdown(fileMatches, searchQuery)
+    } else if (scope === 'files' && matchPaths && matchPaths.size > 0) {
+      searchContent = buildFileListMarkdown(Array.from(matchPaths), searchQuery)
+    } else if (searchQuery) {
+      searchContent = buildNoMatchesMarkdown(searchQuery)
     }
   }
 
@@ -302,26 +586,37 @@ export const load: PageServerLoad = async ({ url }) => {
       ? selectedPath
       : Array.from(matchPaths)[0]
   } else if (!selectedPath) {
-    selectedPath = findFirstFile(filteredTree)
+    selectedPath = hasFile(filteredTree, 'lush.md') ? 'lush.md' : findFirstFile(filteredTree)
   }
 
   if (!selectedPath) {
     return { tree: filteredTree, selectedPath: null, content: null, search }
   }
 
-  const { content: markdown, error: readError } = await readMarkdownSafe(selectedPath)
   const renderer = buildRenderer(selectedPath)
   let content: string | null = null
   let renderError: string | undefined
-  if (markdown) {
+  if (searchQuery && searchContent) {
     try {
-      content = await marked.parse(markdown, { renderer, gfm: true })
+      content = await marked.parse(searchContent, { renderer, gfm: true })
+      selectedPath = 'search-results.md'
     } catch (err) {
       renderError = err instanceof Error ? err.message : 'Unable to render markdown'
     }
+  } else {
+    const { content: markdown, error: readError } = await readMarkdownSafe(selectedPath)
+    if (markdown) {
+      try {
+        content = await marked.parse(markdown, { renderer, gfm: true })
+      } catch (err) {
+        renderError = err instanceof Error ? err.message : 'Unable to render markdown'
+      }
+    }
+    if (readError) {
+      renderError = readError
+    }
   }
-
-  const errorMessage = readError ?? renderError
+  const errorMessage = renderError
 
   return {
     tree: filteredTree,
