@@ -5,14 +5,17 @@
 Create a SvelteKit app in `svelte-app/` that:
 
 - Shows a CodeMirror editor containing `YAML_SAMPLE`.
-- Uses `yaml/lushify` to transform the YAML into the multiline “lush” structure defined in `lush-types/`.
-- Displays a breadcrumb bar under the editor showing the **type path** from the root document node to the **currently selected item**.
+- Uses `yaml/lushify` to transform the YAML into the multiline “lush” structure
+  defined in `lush-types/`.
+- Displays a breadcrumb bar under the editor showing the **type path** from the
+root document node to the **currently selected item**.
 - Keeps core logic UI-agnostic so the same logic can later be reused in a TUI.
 
 ## End Goal
 
-create a language called lush.
-It will be edited with our structural editor which update the underlying `Multiline` structure.
+Create a language called lush.
+It will be edited with our structural editor which updates the underlying
+`Multiline` structure.
 A lush file will be saved as `.lush.yaml` file using a new function `LushAsYaml`
 which will call `tokenInutAsYaml` on the root token. So tokenInputAsYaml will below
 adapted to accept a SusyNode as well as parameter.
@@ -53,9 +56,8 @@ adapted to accept a SusyNode as well as parameter.
 - `svelte-app/src/routes/+page.svelte` UI that uses the logic module.
 - `svelte-app/src/lib/components/BreadcrumbBar.svelte` (pure UI).
 
-5. wrap up as svelte-app/ in tauri-svelte-app/ making it a tauri app.  Explain it in tauri-svelte-app/plan.md
-
-<--- THIS THE CURRENT TASK
+5. wrap up as svelte-app/ in tauri-svelte-app/ making it a tauri app.
+Explain it in tauri-svelte-app/plan.model
 
 6. Support javascript variables
 

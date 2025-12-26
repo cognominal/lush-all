@@ -2,14 +2,35 @@
 # Lush concepts
 
 This doc is the entry point to document lush.
+
+## Docs
+
+
 For the installation, see [README.md](./README.md)
+There is a master [plan](./plan.md). The current file is a hub
+to branch into many specifics subproject.
+Once we get the doc browser into a satisfyting state.
+Our effort will go to the structural editor by using
+subset of lush as experimental ground (huffing html, id and class attributs)
+
+We have now a [glossary](./glossary.md).
+Codex writes a list of [progress](./progress.md) day by day.
+[Search](./svelte-app/search.md) describe the effort to make the docs searchable
+using the [docs](./docs/) route. Probably an effort should be made to
+separate the user docs and the dev docs.
+Effort on a [palette](/svelte-app/palette.md) similar to the vscode one
+is on going.
+[Playground] describes how svelte.dev implements svelte file edition and
+the display of the corresponding app and how we could adapt it to
+create our notebooks.
+[lyaml](/yaml/spec3.md) describe how to evolve the yaml
+library [1](https://github.com/eemeli/yaml) [2](https://eemeli.org/yaml/#yaml)
+to huff shiva objects. This will break compatibility with existing yaml parsers.
 
 ## Lush terminology
 
 Currently the doc is more geared toward a putative developer
 than a putative user.
-
-We have now a [glossary](./glossary.md).
 
 We use **vanilla susy** for the standard syntactic conventions of a language
 and **custom susy** for adapted conventions. We call **posh susy** (or **posh**
