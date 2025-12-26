@@ -54,3 +54,6 @@ The current task is marked as "THIS THE CURRENT TASK" in the root `plan.md` or a
 - Write a session summary after each run in `summaries/yy/mm/dd-hh:mm.md`.
 - Use the current local time for the path; keep the summary concise and Unicode.
 - Write a daily summary in `day-summary/yy/mm/dd.md` (not gitignored) that rolls up the day's session summaries.
+- When asked to "generate progress.md", produce 5-20 lines per day using the
+  daily summaries in `day-summary/`. If a day has very few entries, fewer
+  than 5 lines is acceptable.
