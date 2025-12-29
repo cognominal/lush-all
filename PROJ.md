@@ -1,8 +1,95 @@
 
-# Glossary — Lush (Integrated, Final Pass)
+# Glossary 
+
+TBD: I have already a glossary to be merged.
+TBD: thinking of format for better access from the GUI.
 
 This glossary defines the technical vocabulary used in the **Lush** project.
 Each term is marked as **standard** or **Lush-specific**, and Lush-specific terms are explicitly related to accepted terminology where relevant.
+
+## LYAML (TBD)
+
+An extension of LYAML which supports collection that have the shiva or the diva nature. Aq indexer
+An adapter must be provided to indexer methods
+
+---
+
+## Shiva
+
+An object that has both the array and map nature
+
+---
+
+## Diva 
+
+An object that can be seen as sequence of objects, many of them being pairs 
+That's different from a map because not all chidren have 
+
+An html element can be seen as a diva. Children element that are 
+themselves html element have a key that is their lowercase tag name.
+
+---
+
+## Zyva 
+
+A diva that is additionally a map making a shiva as well.
+html objects have an attribute map.
+
+French modern slang for "go for it"
+
+---
+
+## Map (a.k.a. associative array / dictionary)
+
+A map is a collection of key–value pairs where each key uniquely identifies a value.
+
+Lookup is performed by key rather than by position, following a “name → value” model.
+Most map implementations enforce unique keys; inserting the same key again overwrites the previous value.
+Ordering is not intrinsic to the concept of a map, even if some implementations preserve insertion order.
+Maps are commonly used to represent records, objects, environments, and symbol tables.
+
+Equivalent terms
+ • JSON: object
+ • YAML: mapping
+ • Perl: hash
+ • Python: dict
+ • Lua: table (when used with non-integer keys)
+
+---
+
+## Array (a.k.a. list / sequence)
+
+An array is an ordered sequence of values accessed by numeric index or position.
+Elements may repeat, and identity is determined by position, not by name.
+Arrays preserve order by definition and are suited for lists, streams, and ordered collections.
+Indexing is typically zero-based, though this depends on the language.
+Arrays are used to model vectors, lists of records, and sequential data.
+
+Equivalent terms
+ • JSON: array
+ • YAML: sequence
+ • Perl: array
+ • Python: list
+ • Lua: table (when used with integer keys)
+
+One-line contrast
+
+Maps are keyed associations; arrays are ordered sequences indexed by position
+---
+
+## aq
+
+Stands for any query. An adaptation of jq.
+
+---
+
+## index in aq
+
+---  
+
+## Adapter
+
+An Adapter makes an existing class look like the interface a client expects, without modifying either.
 
 ---
 
@@ -12,9 +99,9 @@ A tree-structured representation of a program that captures semantic structure i
 
 ---
 
-## Astre (AST Reference Representation) — *Lush-specific*
+## Astre (Augmentable Syntax Tree  Reference Representation) — *Lush-specific*
 
-**Astre** is the canonical, authoritative representation of a program in Lush.
+**Astre** is the canonical, authoritative  tree-based representation of a program in Lush.
 
 Astre is:
 
