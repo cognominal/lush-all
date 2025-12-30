@@ -5,6 +5,7 @@
 - TypeScript-only changes should stay `strict` and must not use `any` (prefer `unknown` + narrowing).
 - Use `bun` to install and run scripts; avoid adding `npm`/`pnpm`/`yarn` workflows.
 - Use `vitest` for tests; do not add new Jest tests (the `yaml/` package still has legacy Jest scripts).
+- Exception: Bun-only tests are allowed when they exercise Bun APIs (e.g. `Bun.serve`).
 - Builds must be clean: no errors and no warnings.
 - For Markdown, ensure blank lines around headings and lists to avoid nvim lint errors.
 - When creating or modifying `.md` files, normalize blank lines around headings and lists in the changed Markdown files.
@@ -47,11 +48,15 @@ The Tauri one uses rust API to access the system menu bar, the non Tauri one
 
 ## Current task
 
-The current task is marked as "THIS THE CURRENT TASK" in the root `plan.md` or a `plan.md` below
+Find the current task by locating a "CURRENT TASK" marker in the root `plan.md`
+or any nested `plan.md`. If no such marker exists, append "CURRENT TASK" and the
+latest user prompt to the end of the `plan.md` that contains "CURRENT PLAN".
+Itemize the task if not already done. Mark an item task with a checkbox when done and inform. You can add items or even subitems as go.
 
 ## Session summaries
 
 - Write a session summary after each run in `summaries/yy/mm/dd-hh:mm.md`.
+- Don't do it when there is no code change or minor changes on .md file
 - Use the current local time for the path; keep the summary concise and Unicode.
 - Write a daily summary in `day-summary/yy/mm/dd.md` (not gitignored) that rolls up the day's session summaries.
 - When asked to "generate progress.md", produce 5-20 lines per day using the
