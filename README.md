@@ -21,13 +21,22 @@ package manager installed.
 
 Run `bun install:all`
 
+## Git hooks
+
+To enforce tests before pushing, copy the shared pre-push hook template:
+
+```
+cp scripts/pre-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+```
+
 ## Current deliverable
 
 Only dev mode so far.
-In the [sveltekit](https://svelte.dev) app, the menu bar is built using [skeleton](https://v2.skeleton.dev/)
-widgets.
-In the  [tauri](https://v2.tauri.app/start/) app, the system menubar is used using
-rust API.
+In the [sveltekit](https://svelte.dev) app, the menu bar is built using
+[skeleton](https://v2.skeleton.dev/) widgets.
+In the  [tauri](https://v2.tauri.app/start/) app, the system menubar is used
+using rust API.
 Beyond that the 2 apps are identical.
 Currenly there is is only "Lush/About" that displays a popup.
 
@@ -46,16 +55,19 @@ See [svelte-app/app.md](svelte-app/app.md])
 
 ## Auth docs
 
-- `auth-workos-github.md` — WorkOS AuthKit + GitHub login (SvelteKit + Tauri dev)
-- `tauri-auth-server.md` — “no limitation” Tauri build that bundles a local server (`bun run build:tauri:auth`)
+- `auth-workos-github.md` — WorkOS AuthKit + GitHub login (SvelteKit +
+  Tauri dev)
+- `tauri-auth-server.md` — “no limitation” Tauri build that bundles a
+  local server (`bun run build:tauri:auth`)
 
 ## Monorepo Layout
 
 - `lush-types` is a local npm package to define types used everywhere else
 
-= `yaml/` is 
-a  it is a copy of my  `lush` branch of my local fork of [yaml](https://github.com/eemeli/yaml)
-  to parse a yaml string into a `TokenMultiline` structure
+= `yaml/` is
+a  it is a copy of my  `lush` branch of my local fork of
+[yaml](https://github.com/eemeli/yaml) to parse a yaml string into a
+`TokenMultiline` structure
 
 - `lush-term-editor/` is a terminal based structural editor.
 
@@ -73,8 +85,8 @@ Later (long term) will be :
 At this point we programatically edit yaml data and learn coding with codex.
 No interactive edit and display yet.
 
-The goal is to edit the yaml sample below and simulate the typing return to insert
-a new item below the current one in an sequence.
+The goal is to edit the yaml sample below and simulate the typing return to
+insert a new item below the current one in an sequence.
 The next step will be more difficult : to do the same in a map.
 With a sequence item we can get away with an empty item that stands for null.
 For a mapping we will have to use placeholders.

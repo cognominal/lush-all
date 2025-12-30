@@ -1,0 +1,7 @@
+#!/bin/sh
+set -e
+
+bun test --cwd yaml
+bun test --cwd lush-types
+bun test --cwd lush-term-editor
+bun test --cwd lush-lang
