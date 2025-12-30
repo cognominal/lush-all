@@ -4,8 +4,7 @@
 
 - TypeScript-only changes should stay `strict` and must not use `any` (prefer `unknown` + narrowing).
 - Use `bun` to install and run scripts; avoid adding `npm`/`pnpm`/`yarn` workflows.
-- Use `vitest` for tests; do not add new Jest tests (the `yaml/` package still has legacy Jest scripts).
-- Exception: Bun-only tests are allowed when they exercise Bun APIs (e.g. `Bun.serve`).
+- Use `bun test` for tests; do not add new Jest tests.
 - Builds must be clean: no errors and no warnings.
 - For Markdown, ensure blank lines around headings and lists to avoid nvim lint errors.
 - When creating or modifying `.md` files, normalize blank lines around headings and lists in the changed Markdown files.

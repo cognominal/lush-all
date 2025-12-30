@@ -36,7 +36,7 @@
     "./package.json": "./package.json",
     "./util": {
       "types": "./dist/util.d.ts",
-      "node": "./dist/util.js",
+      "node": "./dist/util.js", 
       "default": "./browser/dist/util.js"
     }
   },
@@ -49,8 +49,8 @@
     "prettier": "prettier --write .",
     "prestart": "rollup --sourcemap -c config/rollup.node-config.mjs",
     "start": "node --enable-source-maps -i -e 'YAML=require(\"./dist/index.js\");const{parse,parseDocument,parseAllDocuments}=YAML'",
-    "test": "jest --config config/jest.config.js",
-    "test:vitest": "vitest",
+    "test": "bun test",
+    "test:vitest": "bun test",
     "test:all": "npm test && npm run test:types && npm run test:dist && npm run test:dist:types",
     "test:browsers": "cd playground && npm test",
     "test:dist": "npm run build:node && jest --config config/jest.config.js",

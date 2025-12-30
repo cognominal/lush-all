@@ -4,7 +4,7 @@
   "packageManager": "bun@1.1.34",
   "workspaces": ["yaml", "lush-types", "lush-term-editor"],
   "scripts": {
-    "test": "bun run --cwd yaml test && bun run --cwd lush-types test && bun run --cwd lush-term-editor test",
+    "test": "bun test --cwd yaml && bun test --cwd lush-types && bun test --cwd lush-term-editor",
     "install:all": "bun install --cwd yaml && bun install --cwd lush-types && bun install --cwd lush-term-editor",
     "dev": "bun run --cwd svelte-app dev",
     "preview": "bun run --cwd svelte-app preview",

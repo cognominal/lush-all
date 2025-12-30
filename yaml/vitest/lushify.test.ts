@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 import { lushify } from '../src/public-api.ts'
 
 const toText = (lines: ReturnType<typeof lushify>) =>

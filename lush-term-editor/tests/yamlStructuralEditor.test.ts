@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 import {
   createInitialState,
   handleReturn,
@@ -9,14 +9,14 @@ import {
 const linesToStrings = (lines: typeof sampleMultiLines) => lines.map(lineToText)
 
 describe('yamlStructuralEditor', () => {
-  it('initializes sample multilines from sample YAML', () => {
+  test('initializes sample multilines from sample YAML', () => {
     const state = createInitialState()
     const asText = linesToStrings(state.lines)
     expect(asText.length).toBeGreaterThan(0)
     expect(asText[0]).toContain('- ')
   })
 
-  it('splices an empty array item after the active line on return', () => {
+  test('splices an empty array item after the active line on return', () => {
     const state = createInitialState()
     const initialAsText = linesToStrings(state.lines)
     const updated = handleReturn({ ...state, cursor: { lineIdx: 1, colIdx: 0 } })
@@ -28,7 +28,7 @@ describe('yamlStructuralEditor', () => {
     expect(updated.cursor.colIdx).toBe(updatedAsText[2].length)
   })
 
-  it('builds a jsView multiline from parsed YAML', () => {
+  test('builds a jsView multiline from parsed YAML', () => {
     const state = createInitialState()
     const jsViewLines = linesToStrings(state.jsView)
     expect(jsViewLines.join('\n')).toContain('toto')

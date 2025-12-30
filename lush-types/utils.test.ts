@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 import { sveltePick, yaml_weedout } from './utils'
 
 type AttributeLike = {
@@ -20,7 +20,7 @@ function attributeNames(value: unknown): string[] {
 }
 
 describe('sveltePick', () => {
-  it('returns class attributes', () => {
+  test('returns class attributes', () => {
     const result = sveltePick(
       '<h1 class="a b">foo</h1>',
       'ast.html.children.0.attributes'
@@ -28,7 +28,7 @@ describe('sveltePick', () => {
     expect(attributeNames(result)).toEqual(['class'])
   })
 
-  it('returns custom attributes', () => {
+  test('returns custom attributes', () => {
     const result = sveltePick(
       '<h1 foo="bar">text</h1>',
       'ast.html.children.0.attributes'
@@ -36,7 +36,7 @@ describe('sveltePick', () => {
     expect(attributeNames(result)).toEqual(['foo'])
   })
 
-  it('returns id attributes', () => {
+  test('returns id attributes', () => {
     const result = sveltePick(
       '<h1 id="an_id">text</h1>',
       'ast.html.children.0.attributes'
@@ -44,7 +44,7 @@ describe('sveltePick', () => {
     expect(attributeNames(result)).toEqual(['id'])
   })
 
-  it('can return yaml when requested', () => {
+  test('can return yaml when requested', () => {
     const result = sveltePick(
       '<h1 id="an_id">text</h1>',
       'ast.html.children.0.attributes',
@@ -54,7 +54,7 @@ describe('sveltePick', () => {
     expect(result).toContain('id')
   })
 
-  it('returns yaml for the full h1 node', () => {
+  test('returns yaml for the full h1 node', () => {
     const result = sveltePick(
       '<h1 id="an_id">text</h1>',
       'ast.html.children.0',
@@ -97,7 +97,7 @@ describe('sveltePick', () => {
     )
   })
 
-  it('strips keys from yaml output', () => {
+  test('strips keys from yaml output', () => {
     const result = sveltePick(
       '<h1 id="an_id">text</h1>',
       'ast.html.children.0',
@@ -124,7 +124,7 @@ describe('sveltePick', () => {
     )
   })
 
-  it('accepts space-separated key strings', () => {
+  test('accepts space-separated key strings', () => {
     const result = sveltePick(
       '<h1 id="an_id">text</h1>',
       'ast.html.children.0',
