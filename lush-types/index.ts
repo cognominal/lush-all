@@ -92,6 +92,7 @@ export type CompletionTokenMetadata =
   | TypeScriptSymbolCompletionMetadata
 
 export interface SusyINode {
+  nameAsSon?: string // will be useful to build a naive projection
   kind: LushTokenKind
   type: TokenTypeName
   tokenIdx: number
