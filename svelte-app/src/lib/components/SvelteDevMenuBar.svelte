@@ -67,7 +67,7 @@
 
 <nav class="sk-nav" aria-label="Primary" bind:this={root}>
   {#if showHome}
-    <a class="home-link" href="/" aria-label={homeLabel} title={homeLabel}>
+    <a class="home-link" href="/yaml-explore" aria-label={homeLabel} title={homeLabel}>
       {homeLabel}
     </a>
   {/if}

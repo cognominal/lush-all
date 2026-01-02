@@ -154,7 +154,7 @@
       notInPalette: true,
       handler: () => {
         setYamlFileContent(null)
-        void goto('/')
+        void goto('/yaml-explore')
       }
     })
 
@@ -228,7 +228,7 @@
         void openYamlFilePicker()
       } else if (action === 'open-yaml-sample') {
         setYamlFileContent(null)
-        void goto('/')
+        void goto('/yaml-explore')
       }
     }
     window.addEventListener('lush:menu-action', onDomMenuAction as EventListener)
