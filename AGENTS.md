@@ -47,7 +47,7 @@ The Tauri one uses rust API to access the system menu bar, the non Tauri one
 
 ## Current task
 
-- When a prompt starts with `T:` and a markdown file path, treat it as a task
+- When a prompt starts with `T:` and a markdown file path, treat it as a task$
   request and write it to that file, prefixed by a `CURRENT TASK` line.
 - Ensure `plan.md` includes a `CURRENT PLAN:` line followed by the path to the
   current `*.md` that contains a `CURRENT TASK` (if any).
@@ -60,11 +60,13 @@ The Tauri one uses rust API to access the system menu bar, the non Tauri one
 
 ## Session summaries
 
-- Write a session summary after each run in `summaries/yy/mm/dd-hh:mm.md`.
+- Write a session summary after each run in `summaries/yy-mm-dd-hh:mm.md`.
 - Don't do it when there is no code change or minor changes on .md file
 - Use the current local time for the path; keep the summary concise and Unicode.
-- Write a daily summary in `day-summary/yy/mm/dd.md` (not gitignored)
+- Write a daily summary in `day-summary/detailled-yy-mm-dd.md` only for the previous day when missing
   that rolls up the day's session summaries.
-- When asked to "generate progress.md", produce 5-20 lines per day using the
+- When asked to `day-summary/brief-yy-mm-dd.md`, produce 5-20 lines for the previous day( or days if missing), using the
   daily summaries in `day-summary/`. If a day has very few entries, fewer
-  than 5 lines is acceptable.
+  than 5 lines is acceptable. If no entries, just say so.
+![](/Users/cog/Desktop/Capture/%20d’écran/%202026-01-02/%20à/%2011.16.04.png)
+![](/Users/cog/Desktop/Capture/%20d’écran/%202026-01-02/%20à/%2011.16.04.png)
