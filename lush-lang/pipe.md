@@ -21,7 +21,7 @@ toto.yaml |  0.toto.2
 ```
 When the initial component of a pipe is a file it will read it for further processing by other components of the path.
 
-## notebook
+# notebook
 
 lbook.lyaml 
 

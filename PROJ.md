@@ -1,5 +1,5 @@
 
-# Glossary 
+# Glossary
 
 TBD: I have already a glossary to be merged.
 TBD: thinking of format for better access from the GUI.
@@ -7,30 +7,36 @@ TBD: thinking of format for better access from the GUI.
 This glossary defines the technical vocabulary used in the **Lush** project.
 Each term is marked as **standard** or **Lush-specific**, and Lush-specific terms are explicitly related to accepted terminology where relevant.
 
-## LYAML (TBD)
+## Pipe  — *Lush-specific*
+
+
+
+---
+
+## LYAML (TBD) — *Lush-specific*
 
 An extension of LYAML which supports collection that have the shiva or the diva nature. Aq indexer
 An adapter must be provided to indexer methods
 
 ---
 
-## Shiva
+## Shiva — *Lush-specific*
 
 An object that has both the array and map nature
 
 ---
 
-## Diva 
+## Diva  — *Lush-specific*
 
-An object that can be seen as sequence of objects, many of them being pairs 
-That's different from a map because not all chidren have 
+An object that can be seen as sequence of objects, many of them being pairs
+That's different from a map because not all chidren have
 
-An html element can be seen as a diva. Children element that are 
+An html element can be seen as a diva. Children element that are
 themselves html element have a key that is their lowercase tag name.
 
 ---
 
-## Zyva 
+## Zyva  — *Lush-specific*
 
 A diva that is additionally a map making a shiva as well.
 html objects have an attribute map.
@@ -77,7 +83,7 @@ One-line contrast
 Maps are keyed associations; arrays are ordered sequences indexed by position
 ---
 
-## aq
+## aq — *Lush-specific*
 
 Stands for any query. An adaptation of jq.
 

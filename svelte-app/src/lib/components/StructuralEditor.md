@@ -1,0 +1,45 @@
+# StructuralEditor
+
+## Purpose
+
+`StructuralEditor` renders the structural editor UI and manages the
+CodeMirror view, selection, and breadcrumb updates for the sample
+structural tree.
+
+## Usage
+
+```svelte
+<script lang="ts">
+  import StructuralEditor from '$lib/components/StructuralEditor.svelte'
+</script>
+
+<StructuralEditor />
+```
+
+## Behavior
+
+- Initializes a sample tree using `createSampleJsTree` and projects it
+  into the editor view.
+- Drives CodeMirror state updates for selection, decorations, and
+  content sync.
+- Tracks the current structural path and token path to support normal
+  and insert modes.
+- Builds breadcrumbs from the root to the focused node.
+
+## Keyboard controls
+
+Normal mode:
+
+- `i` enters insert mode.
+- `Tab` and `Shift+Tab` move between input tokens.
+- `Enter` descends into the next child path.
+
+Insert mode:
+
+- `Esc` returns to normal mode.
+- Printable characters insert into the current token.
+
+## Notes
+
+- The editor view is created on mount and destroyed on unmount.
+- The component uses Svelte 5 runes for state and derived values.

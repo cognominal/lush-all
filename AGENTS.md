@@ -47,17 +47,24 @@ The Tauri one uses rust API to access the system menu bar, the non Tauri one
 
 ## Current task
 
-Find the current task by locating a "CURRENT TASK" marker in the root `plan.md`
-or any nested `plan.md`. If no such marker exists, append "CURRENT TASK" and the
-latest user prompt to the end of the `plan.md` that contains "CURRENT PLAN".
-Itemize the task if not already done. Mark an item task with a checkbox when done and inform. You can add items or even subitems as go.
+- When a prompt starts with `T:` and a markdown file path, treat it as a task
+  request and write it to that file, prefixed by a `CURRENT TASK` line.
+- Ensure `plan.md` includes a `CURRENT PLAN:` line followed by the path to the
+  current `*.md` that contains a `CURRENT TASK` (if any).
+- If a prompt starts with `Q:`, ignore any current task.
+- If a prompt starts with `T?`, print the current task or `no task`.
+- Ensure the task is itemized; add checkboxes if missing.
+- When a task item is completed, check it off and mention it.
+- If all items are checked, remove the `CURRENT TASK` marker.
+- You may add items or subitems as needed.
 
 ## Session summaries
 
 - Write a session summary after each run in `summaries/yy/mm/dd-hh:mm.md`.
 - Don't do it when there is no code change or minor changes on .md file
 - Use the current local time for the path; keep the summary concise and Unicode.
-- Write a daily summary in `day-summary/yy/mm/dd.md` (not gitignored) that rolls up the day's session summaries.
+- Write a daily summary in `day-summary/yy/mm/dd.md` (not gitignored)
+  that rolls up the day's session summaries.
 - When asked to "generate progress.md", produce 5-20 lines per day using the
   daily summaries in `day-summary/`. If a day has very few entries, fewer
   than 5 lines is acceptable.

@@ -1,4 +1,4 @@
-# plan for releases
+# tentative plan for releases
 
 Deliverables : Use a checkox on/off
 
@@ -12,11 +12,11 @@ Deliverables : Use a checkox on/off
 
 ## unrelased pre-listmus goalposts
 
-reading : learn GraphSQL and Xpath to see if they can be endosymbioted in lush  
+Reading : learn GraphSQL and Xpath to see if they can be endosymbioted in lush or mixed into aq.  
 
-minimal lush example are provided as their serialization.
+Minimal lush example are provided as their serialization.
 Poshing is supported to be able to past their html projection in markdown 
-document.
+document. So we can defer lushed implementation.
 
 ## litmus
 
@@ -25,8 +25,26 @@ typed pipe with implemented with coroutines
 
 The url is accessed and indexer access a subset of the info produced
 
-Constructs supported
+url  | literal indexer
+
+## pipe dream 
+
+supporting commands as pipe stage
+
+Constructs supported :
 
 let var = scalar-literal
 
-url  | indexer
+
+url  | literal indexer
+
+## yummy
+
+lyaml supports interpolation and matching
+
+## eddy 
+
+Making lushed a thing
+
+
+

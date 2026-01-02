@@ -17,3 +17,5 @@ jobs:
         run: bun run install:all
       - name: Run tests
         run: bun test
+      - name: Verify committed test modules
+        run: sh scripts/check-test-modules-committed.sh

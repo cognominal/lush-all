@@ -1,4 +1,6 @@
-CURRENT TASK
+# tasks toward litmus release
+
+## support streaming
 
 - [x] Create `lush-lang/src/coroutine-pipe.ts` to implement downstream
   processing for array elements.

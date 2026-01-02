@@ -59,8 +59,6 @@ export function lush2svelte(lush: SusyEd) { ... } // REVIEW
 A SusyLines value represents a zone of edition of a susy (/for now Leste) that compiles
 into an astre (for now svelte).
 
-- `SusyLines` is defined in the same file as `SusyNode`. (REVIEW)
-- The mapping from a `SusyNode` tree to `SusyLines` is currently unclear. (REVIEW)
 - Likely direction: introduce an interface that carries both:
   - `lines`: the existing `SusyLines` layout (textual layout/lines), (REVIEW)
   - `root`: the root `SusyNode` for the concrete syntax tree.
