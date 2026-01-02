@@ -115,6 +115,8 @@ export interface SusyEd {
   lines: SusyLines
 }
 
+export { susySvelteProjection } from './susy-svelte-projection'
+
 
 export function susyText(token: SusyNode | undefined): string {
   if (!token) return ''
