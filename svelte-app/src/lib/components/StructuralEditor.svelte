@@ -15,15 +15,12 @@
   } from '@codemirror/view'
   import {
     createHighlightRegistry,
-    createSampleJsTree,
     descendPath,
-    findFirstTokPath,
     findNextTokPath,
     findPrevTokPath,
     getNodeByPath,
     isSusyTok,
     parseHighlightYaml,
-    projectTree,
     serializePath,
     type SusyNode,
     type StructuralEditorState,
@@ -31,6 +28,17 @@
   } from '@lush/structural'
   import highlightRaw from '@lush/structural/highlight.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
+  import {
+    buildBreadcrumbs,
+    clamp,
+    createInitialState,
+    findPathAtPos,
+    getTextRange,
+    rebuildProjection,
+    resolveInsertTarget,
+    type BreadcrumbItem,
+    updateTokenText
+  } from '$lib/logic/structuralEditor'
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -70,23 +78,9 @@
     provide: (field) => EditorView.decorations.from(field)
   })
 
-  function createInitialState(): StructuralEditorState {
-    const root = createSampleJsTree()
-    const projection = projectTree(root)
-    tokPaths = projection.tokPaths
-
-    return {
-      mode: 'normal',
-      root,
-      currentPath: [],
-      currentTokPath: tokPaths[0] ?? [],
-      cursorOffset: 0,
-      projectionText: projection.text,
-      spansByPath: projection.spansByPath
-    }
-  }
-
-  let editorState = $state<StructuralEditorState>(createInitialState())
+  const initial = createInitialState()
+  tokPaths = initial.tokPaths
+  let editorState = $state<StructuralEditorState>(initial.state)
 
   $effect(() => {
     if (editorState.root === lastRoot) return
@@ -94,97 +88,8 @@
     dispatch('rootChange', editorState.root)
   })
 
-  type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
-
-  function rebuildProjection(
-    nextRoot: SusyNode,
-    base: StructuralEditorState
-  ): StructuralEditorState {
-    const projection = projectTree(nextRoot)
-    tokPaths = projection.tokPaths
-    return {
-      ...base,
-      root: nextRoot,
-      projectionText: projection.text,
-      spansByPath: projection.spansByPath
-    }
-  }
-
   function getSpan(path: number[]): Span | undefined {
     return editorState.spansByPath.get(serializePath(path))
-  }
-
-  function buildBreadcrumbs(
-    state: StructuralEditorState,
-    path: number[]
-  ): BreadcrumbItem[] {
-    const items: BreadcrumbItem[] = []
-    let current: SusyNode | undefined = state.root
-    const rootSpan = state.spansByPath.get(serializePath([]))
-    items.push({
-      type: `${current.kind}.${current.type}`,
-      range: rootSpan ? { from: rootSpan.from, to: rootSpan.to } : null
-    })
-    for (const idx of path) {
-      current = current?.kids?.[idx]
-      if (!current) break
-      const currentPath = items.length === 1 ? [idx] : [...path.slice(0, items.length)]
-      const span = state.spansByPath.get(serializePath(currentPath))
-      items.push({
-        type: `${current.kind}.${current.type}`,
-        range: span ? { from: span.from, to: span.to } : null
-      })
-    }
-    return items
-  }
-
-  function getTextRange(span: Span | undefined): { from: number; to: number } {
-    if (!span) return { from: 0, to: 0 }
-    return {
-      from: span.textFrom ?? span.from,
-      to: span.textTo ?? span.to
-    }
-  }
-
-  function clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(value, max))
-  }
-
-  function parsePathKey(key: string): number[] | null {
-    try {
-      const parsed: unknown = JSON.parse(key)
-      if (!Array.isArray(parsed)) return null
-      if (!parsed.every((entry) => typeof entry === 'number')) return null
-      return parsed
-    } catch {
-      return null
-    }
-  }
-
-  function findPathAtPos(pos: number): number[] | null {
-    let bestPath: number[] | null = null
-    let bestSpan: Span | null = null
-    let bestIsInput = false
-
-    for (const [key, span] of editorState.spansByPath.entries()) {
-      if (pos < span.from || pos > span.to) continue
-      const path = parsePathKey(key)
-      if (!path) continue
-      const token = getNodeByPath(editorState.root, path)
-      if (!token) continue
-
-      const spanSize = span.to - span.from
-      const bestSize = bestSpan ? bestSpan.to - bestSpan.from : Number.POSITIVE_INFINITY
-      const isInput = isSusyTok(token)
-
-      if (spanSize < bestSize || (spanSize === bestSize && isInput && !bestIsInput)) {
-        bestPath = path
-        bestSpan = span
-        bestIsInput = isInput
-      }
-    }
-
-    return bestPath
   }
 
   function buildSelection(): EditorSelection {
@@ -259,20 +164,14 @@
   }
 
   function enterInsertMode() {
-    const currentToken = getNodeByPath(editorState.root, editorState.currentPath)
-    const targetPath =
-      currentToken && isSusyTok(currentToken)
-        ? editorState.currentPath
-        : findFirstTokPath(editorState.root, editorState.currentPath)
-    const token = getNodeByPath(editorState.root, targetPath)
-    const text = token?.text ?? ''
+    const target = resolveInsertTarget(editorState.root, editorState.currentPath)
 
     setState({
       ...editorState,
       mode: 'insert',
-      currentPath: targetPath,
-      currentTokPath: targetPath,
-      cursorOffset: text.length
+      currentPath: target.path,
+      currentTokPath: target.path,
+      cursorOffset: target.text.length
     })
   }
 
@@ -313,19 +212,6 @@
     focusInputPath(prevPath)
   }
 
-  function updateTokenText(root: SusyNode, path: number[], nextText: string): SusyNode {
-    if (path.length === 0) {
-      return { ...root, text: nextText }
-    }
-    const [idx, ...rest] = path
-    const children = root.kids ?? []
-    const nextChildren = children.map((child: SusyNode, childIdx: number) => {
-      if (childIdx !== idx) return child
-      return updateTokenText(child, rest, nextText)
-    })
-    return { ...root, kids: nextChildren }
-  }
-
   function insertChar(char: string) {
     const path = editorState.currentTokPath
     const token = getNodeByPath(editorState.root, path)
@@ -341,7 +227,9 @@
       currentTokPath: path,
       cursorOffset: offset + char.length
     }
-    setState(rebuildProjection(nextRoot, baseState))
+    const rebuilt = rebuildProjection(nextRoot, baseState)
+    tokPaths = rebuilt.tokPaths
+    setState(rebuilt.state)
   }
 
   function isPrintable(event: KeyboardEvent): boolean {
@@ -436,13 +324,13 @@
               const coords = { x: event.clientX, y: event.clientY }
               const pos = view.posAtCoords(coords)
               if (pos == null) return false
-              const path = findPathAtPos(pos)
+              const path = findPathAtPos(editorState, pos)
               if (!path) return false
               const token = getNodeByPath(editorState.root, path)
               if (!token) return false
               const inputPath = isSusyTok(token)
                 ? path
-                : findFirstTokPath(editorState.root, path)
+                : resolveInsertTarget(editorState.root, path).path
               setState({
                 ...editorState,
                 currentPath: path,
