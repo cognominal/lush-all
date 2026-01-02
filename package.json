@@ -3,6 +3,9 @@
   "private": true,
   "packageManager": "bun@1.1.34",
   "workspaces": ["yaml", "lush-types", "lush-term-editor"],
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  },
   "scripts": {
     "test": "bun test --cwd yaml && bun test --cwd lush-types && bun test --cwd lush-term-editor",
     "install:all": "bun install --cwd yaml && bun install --cwd lush-types && bun install --cwd lush-term-editor",

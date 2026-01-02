@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "types": ["vite/client"],
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true
   }
 }

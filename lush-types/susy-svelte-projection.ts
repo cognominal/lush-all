@@ -4,6 +4,12 @@ import { parse } from "svelte/compiler";
 import YAML from "yaml";
 import type { LushTokenKind, SusyNode, TokenTypeName } from "lush-types";
 
+declare global {
+  interface ImportMeta {
+    main?: boolean;
+  }
+}
+
 type AstNode = {
   type: string;
   start?: number;

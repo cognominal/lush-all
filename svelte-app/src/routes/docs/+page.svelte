@@ -42,16 +42,16 @@
     </div>
 
     <div class="flex min-h-0 flex-1 flex-col gap-4 pt-4">
-      <SplitPane
-        class="min-h-0 flex-1 h-full"
-        type="horizontal"
-        id="docs"
-        min="240px"
-        max="-240px"
-        pos="25%"
-        --color="rgba(var(--color-surface-500) / 0.25)"
-        --thickness="14px"
-      >
+      <div class="min-h-0 flex-1 h-full">
+        <SplitPane
+          type="horizontal"
+          id="docs"
+          min="240px"
+          max="-240px"
+          pos="25%"
+          --color="rgba(var(--color-surface-500) / 0.25)"
+          --thickness="14px"
+        >
         {#snippet a()}
           <aside class="flex h-full min-h-0 flex-col rounded-2xl border border-slate-800/70 bg-slate-900/70 p-4">
             <FileTree
@@ -93,7 +93,8 @@
             {/if}
           </section>
         {/snippet}
-      </SplitPane>
+        </SplitPane>
+      </div>
 
       <BreadcrumbBar items={crumbs} onSelect={handleCrumbSelect} />
     </div>

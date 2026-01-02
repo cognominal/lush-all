@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import {
     EditorSelection,
     EditorState,
@@ -35,6 +35,9 @@
   let host: HTMLDivElement
   let view: EditorView | null = null
   let tokPaths: number[][] = []
+  let lastRoot: SusyNode | null = null
+
+  const dispatch = createEventDispatcher<{ rootChange: SusyNode }>()
 
   const highlightRegistry = createHighlightRegistry(parseHighlightYaml(highlightRaw))
 
@@ -84,6 +87,12 @@
   }
 
   let editorState = $state<StructuralEditorState>(createInitialState())
+
+  $effect(() => {
+    if (editorState.root === lastRoot) return
+    lastRoot = editorState.root
+    dispatch('rootChange', editorState.root)
+  })
 
   type BreadcrumbItem = { type: string; range: { from: number; to: number } | null }
 
@@ -494,10 +503,14 @@
     view = null
   })
 
-  const crumbs = $derived(() => buildBreadcrumbs(editorState, editorState.currentPath))
+  let crumbs = $state<BreadcrumbItem[]>([])
+
+  $effect(() => {
+    crumbs = buildBreadcrumbs(editorState, editorState.currentPath)
+  })
 </script>
 
-<div class="flex h-full flex-col gap-4 p-6">
+<div class="flex h-full min-h-0 flex-col gap-4 p-6">
   <div class="flex items-baseline justify-between">
     <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
       Structural Editor
@@ -506,8 +519,8 @@
       class="text-xs text-surface-400"
       role="button"
       tabindex="0"
-      on:click={() => view?.dom.blur()}
-      on:keydown={(event) => {
+      onclick={() => view?.dom.blur()}
+      onkeydown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
           view?.dom.blur()
@@ -518,8 +531,8 @@
     </div>
   </div>
 
-  <div class="flex-1 rounded-xl border border-surface-700/60 bg-surface-900/70">
-    <div class="h-full min-h-[420px]" bind:this={host}></div>
+  <div class="flex-1 min-h-0 rounded-xl border border-surface-700/60 bg-surface-900/70">
+    <div class="h-full min-h-0" bind:this={host}></div>
   </div>
 
   <BreadcrumbBar items={crumbs} />

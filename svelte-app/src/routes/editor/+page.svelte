@@ -1,5 +1,7 @@
 <script lang="ts">
-  import StructuralEditor from '$lib/components/StructuralEditor.svelte'
+  import EditorWorkspace from '$lib/components/EditorWorkspace.svelte'
 </script>
 
-<StructuralEditor />
+<div class="h-full min-h-0">
+  <EditorWorkspace />
+</div>
