@@ -20,10 +20,12 @@ const colorMap: Record<string, string> = {
   black: 'rgb(17, 24, 39)'
 }
 
+// Normalize highlight keys for consistent lookup.
 function normalizeKey(key: string): string {
   return key.trim().toLowerCase()
 }
 
+// Parse highlight YAML into a normalized map.
 export function parseHighlightYaml(text: string): HighlightMap {
   if (!text || !text.trim()) return new Map()
   try {
@@ -42,6 +44,7 @@ export function parseHighlightYaml(text: string): HighlightMap {
   }
 }
 
+// Convert a style chain into CSS property values.
 function styleForChain(chain: string): Record<string, string> {
   const style: Record<string, string> = {}
   const segments = chain
@@ -69,12 +72,14 @@ function styleForChain(chain: string): Record<string, string> {
   return style
 }
 
+// Build a registry with class lookup and theme spec generation.
 export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
   const classByKey = new Map<string, string>()
   const classByChain = new Map<string, string>()
   const themeSpec: Record<string, Record<string, string>> = {}
   let classIdx = 0
 
+  // Resolve or create a CSS class for a style chain.
   function classForChain(chain: string): string {
     const existing = classByChain.get(chain)
     if (existing) return existing
@@ -91,6 +96,7 @@ export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
     classByKey.set(normalizedKey, className)
   }
 
+  // Look up the class for a kind/type pair.
   function classFor(kind: string, type: string): string | null {
     const kindKey = kind.toLowerCase()
     const typeKey = type.toLowerCase()

@@ -101,6 +101,7 @@ export interface SusyINode {
   x?: number
   ast?: unknown // ast node, for svelte, that would be an augmented tree
   completion?: CompletionTokenMetadata
+  stemCell?:
 }
 
 export type SusyLeaf = SusyINode & { text: string }
@@ -118,6 +119,7 @@ export interface SusyEd {
 export { susySvelteProjection } from './susy-svelte-projection'
 
 
+// Render a SusyNode subtree into plain text.
 export function susyText(token: SusyNode | undefined): string {
   if (!token) return ''
   if (typeof token.text === 'string') return token.text
@@ -127,6 +129,7 @@ export function susyText(token: SusyNode | undefined): string {
   return ''
 }
 
+// Split a line into Susy tokens of spaces and naked strings.
 export function tokenizeSusyLine(text: string): SusyLine {
   if (!text) return []
   const tokens: SusyLine = []
@@ -147,6 +150,7 @@ export function tokenizeSusyLine(text: string): SusyLine {
   return tokens
 }
 
+// Convert a multiline string into Susy token lines.
 export function stringToSusyLines(input: string): SusyLines {
   if (typeof input !== 'string' || input.length === 0) return []
   return input.split(/\r?\n/).map(tokenizeSusyLine)

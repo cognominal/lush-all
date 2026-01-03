@@ -2,6 +2,7 @@ import type { SusyLeaf, SusyNode, TokenTypeName } from '../../lush-types/index.t
 
 let tokenIdxCounter = 0
 
+// Create a leaf token with a stable index.
 function makeToken(text: string, type: TokenTypeName): SusyLeaf {
   const token: SusyLeaf = {
     kind: 'js',
@@ -13,6 +14,7 @@ function makeToken(text: string, type: TokenTypeName): SusyLeaf {
   return token
 }
 
+// Build a line node and append a newline token.
 function makeLine(tokens: SusyNode[]): SusyNode {
   return {
     kind: 'js',
@@ -22,6 +24,7 @@ function makeLine(tokens: SusyNode[]): SusyNode {
   }
 }
 
+// Create a small JS sample tree for demos/tests.
 export function createSampleJsTree(): SusyNode {
   tokenIdxCounter = 0
 

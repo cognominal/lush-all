@@ -12,7 +12,8 @@
   lint errors.
 - When creating or modifying `.md` files, normalize blank lines around
   headings and lists in the changed Markdown files.
-- Use Svelte 5 runes style (`$state`, `$derived`, `$effect`) and avoid `$:`
+- Use Svelte 5 runes style (`$state`, `$derived`, `$effect`), no `:`
+  in event  handlers and avoid `$:`
   reactivity blocks.
 - Follow Svelte agent documentation (svelte.dev docs/llms) for Svelte
   changes.

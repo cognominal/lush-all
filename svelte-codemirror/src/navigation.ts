@@ -1,6 +1,7 @@
 import type { SusyNode } from '../../lush-types/index.ts'
 import { getNodeByPath, isSusyTok } from './tree'
 
+// Walk a subtree to find the first token path.
 function findFirstTokInSubtree(
   token: SusyNode,
   path: number[]
@@ -15,6 +16,7 @@ function findFirstTokInSubtree(
   return undefined
 }
 
+// Resolve a token path from a starting path.
 export function findFirstTokPath(root: SusyNode, path: number[]): number[] {
   const token = getNodeByPath(root, path)
   if (!token) return path
@@ -22,15 +24,18 @@ export function findFirstTokPath(root: SusyNode, path: number[]): number[] {
   return findFirstTokInSubtree(token, path) ?? path
 }
 
+// Serialize a path for lookup comparisons.
 function pathKey(path: number[]): string {
   return JSON.stringify(path)
 }
 
+// Find the index of a target path within a list.
 function findPathIndex(paths: number[][], target: number[]): number {
   const key = pathKey(target)
   return paths.findIndex((path) => pathKey(path) === key)
 }
 
+// Return the next token path in a list.
 export function findNextTokPath(
   paths: number[][],
   current: number[]
@@ -40,6 +45,7 @@ export function findNextTokPath(
   return paths[idx + 1]
 }
 
+// Return the previous token path in a list.
 export function findPrevTokPath(
   paths: number[][],
   current: number[]
@@ -49,6 +55,7 @@ export function findPrevTokPath(
   return paths[idx - 1]
 }
 
+// Descend to the first child if it exists.
 export function descendPath(root: SusyNode, path: number[]): number[] {
   const token = getNodeByPath(root, path)
   if (!token?.kids || token.kids.length === 0) return path

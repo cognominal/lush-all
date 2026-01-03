@@ -14,6 +14,7 @@ type SubtreeProjection = {
   tokPaths: number[][]
 }
 
+// Project a subtree into text, spans, and token paths.
 function projectSubtree(token: SusyNode, path: number[]): SubtreeProjection {
   if (!token.kids || token.kids.length === 0) {
     const text = token.text ?? ''
@@ -65,6 +66,7 @@ function projectSubtree(token: SusyNode, path: number[]): SubtreeProjection {
   return { text: combinedText, spansByPath, tokPaths }
 }
 
+// Project the root tree into a full projection result.
 export function projectTree(root: SusyNode): ProjectionResult {
   return projectSubtree(root, [])
 }

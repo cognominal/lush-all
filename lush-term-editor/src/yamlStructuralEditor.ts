@@ -36,6 +36,7 @@ function cloneLine(line: Multiline): Multiline {
   return line.map(cloneToken)
 }
 
+// Join a line of tokens into its text.
 export function lineToText(line: Multiline): string {
   return line.map(susyText).join('')
 }
@@ -90,6 +91,7 @@ function buildSampleMultiLines(yamlText = SAMPLE_YAML): MultiLines {
 
 export const sampleMultiLines: MultiLines = buildSampleMultiLines()
 
+// Insert an empty array item after a given line index.
 export function insertEmptyArrayItem(lines: MultiLines, lineIndex: number): MultiLines {
   if (lineIndex < 0 || lineIndex >= lines.length) return lines
   const next = lines.map(cloneLine)
@@ -134,6 +136,7 @@ function cloneLines(lines: MultiLines): MultiLines {
   return lines.map(cloneLine)
 }
 
+// Build initial editor state from YAML text.
 export function createInitialState(yamlText = SAMPLE_YAML): EditorState {
   const initialLines = buildSampleMultiLines(yamlText)
   const jsView = buildJsViewMultiline(linesToYaml(initialLines))
@@ -148,6 +151,7 @@ function lineHasSeqItem(line: Multiline): boolean {
   return line.some(token => token?.type === SEQ_ITEM_TYPE)
 }
 
+// Handle return by inserting a new sequence item line.
 export function handleReturn(state: EditorState): EditorState {
   const { lineIdx } = state.cursor
   if (lineIdx < 0 || lineIdx >= state.lines.length) return state
@@ -166,6 +170,7 @@ export function handleReturn(state: EditorState): EditorState {
   }
 }
 
+// Render the editor state into a debug string view.
 export function renderState(state: EditorState): string {
   const renderedLines = state.lines.map((line, idx) => {
     const text = lineToText(line)

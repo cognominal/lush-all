@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { parse } from "svelte/compiler";
 import YAML from "yaml";
 import type { LushTokenKind, SusyNode, TokenTypeName } from "lush-types";
@@ -25,9 +23,11 @@ type BuiltNode = {
 
 const SVELTE_KIND = "Svelte" as unknown as LushTokenKind;
 
+// Check for a non-null object.
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+// Narrow unknown to a Svelte AST node with spans.
 const isAstNode = (value: unknown): value is AstNode => {
   if (!isObject(value)) return false;
   const type = value.type;
@@ -40,12 +40,14 @@ const isAstNode = (value: unknown): value is AstNode => {
   );
 };
 
+// Normalize an AST node span to a concrete start/end.
 const getSpan = (node: AstNode): { start: number; end: number } => {
   const start = typeof node.start === "number" ? node.start : 0;
   const end = typeof node.end === "number" ? node.end : start;
   return { start, end };
 };
 
+// Collect child AST nodes with their parent key names.
 const collectChildren = (node: AstNode): { child: AstNode; nameAsSon: string }[] => {
   const children: { child: AstNode; nameAsSon: string }[] = [];
   for (const [key, value] of Object.entries(node)) {
@@ -62,6 +64,7 @@ const collectChildren = (node: AstNode): { child: AstNode; nameAsSon: string }[]
   return children;
 };
 
+// Create a Susy "Space" node spanning a source gap.
 const makeSpaceNode = (
   source: string,
   start: number,
@@ -81,6 +84,7 @@ const makeSpaceNode = (
   };
 };
 
+// Convert a Svelte AST node to a Susy node subtree.
 const buildSusy = (
   node: AstNode,
   source: string,
@@ -108,7 +112,7 @@ const buildSusy = (
 
   const susy: SusyNode = {
     kind: SVELTE_KIND,
-    type: node.type as unknown as TokenTypeName,
+    type: (node.type ?? "Root") as unknown as TokenTypeName,
     tokenIdx: 0,
   };
 
@@ -117,11 +121,15 @@ const buildSusy = (
     susy.text = node.name;
   }
   if (kids.length > 0) susy.kids = kids;
+  if (!susy.kids && typeof susy.text !== "string") {
+    susy.text = source.slice(start, end);
+  }
   if (typeof start === "number") susy.x = start;
 
   return { susy, start, end };
 };
 
+// Assign sequential token indices across a Susy tree.
 const assignTokenIdx = (node: SusyNode, tokenIdxRef: { value: number }) => {
   node.tokenIdx = tokenIdxRef.value++;
   if (Array.isArray(node.kids)) {
@@ -140,9 +148,15 @@ export const susySvelteProjection = (
   return root;
 };
 
+// called if that file is executed stand alone
 if (import.meta.main) {
-  const filePath = process.argv[2] ?? "lk.svelte";
-  const source = readFileSync(filePath, "utf8");
-  const root = susySvelteProjection(source, resolve(filePath));
-  process.stdout.write(`${YAML.stringify(root)}`);
+  // Run CLI mode when invoked directly.
+  void (async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const filePath = process.argv[2] ?? "lk.svelte";
+    const source = readFileSync(filePath, "utf8");
+    const root = susySvelteProjection(source, resolve(filePath));
+    process.stdout.write(`${YAML.stringify(root)}`);
+  })();
 }

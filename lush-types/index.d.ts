@@ -112,6 +112,11 @@ export interface SusyEd {
   lines: SusyLines
 }
 
+export function susySvelteProjection(
+  source: string,
+  filename?: string
+): SusyNode
+
 export function susyText(token: SusyNode | undefined): string
 export function tokenizeSusyLine(text: string): SusyLine
 export function stringToSusyLines(input: string): SusyLines

@@ -1,11 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import {
-    EditorSelection,
     EditorState,
     StateEffect,
-    StateField,
-    type Range
+    StateField
   } from '@codemirror/state'
   import {
     Decoration,
@@ -15,17 +13,13 @@
   } from '@codemirror/view'
   import {
     createHighlightRegistry,
-    descendPath,
-    findNextTokPath,
-    findPrevTokPath,
     getNodeByPath,
     isSusyTok,
     parseHighlightYaml,
-    serializePath,
     type SusyNode,
-    type StructuralEditorState,
-    type Span
+    type StructuralEditorState
   } from '@lush/structural'
+  import { susySvelteProjection } from 'lush-types'
   import highlightRaw from '@lush/structural/highlight.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import {
@@ -33,15 +27,20 @@
     clamp,
     createInitialState,
     findPathAtPos,
+    getSpan,
     getTextRange,
+    handleKey,
     rebuildProjection,
     resolveInsertTarget,
-    type BreadcrumbItem,
-    updateTokenText
+    setStateAndSync,
+    syncView,
+    type BreadcrumbItem
   } from '$lib/logic/structuralEditor'
 
   let host: HTMLDivElement
   let view: EditorView | null = null
+  let sourceHost: HTMLDivElement
+  let sourceView: EditorView | null = null
   let tokPaths: number[][] = []
   let lastRoot: SusyNode | null = null
 
@@ -50,6 +49,7 @@
   const highlightRegistry = createHighlightRegistry(parseHighlightYaml(highlightRaw))
 
   class FocusWidget extends WidgetType {
+    // Render a placeholder span when focus would be empty.
     toDOM() {
       const span = document.createElement('span')
       span.className = 'cm-structural-empty'
@@ -57,6 +57,7 @@
       return span
     }
 
+    // Prevent editor events from reaching the widget.
     ignoreEvent() {
       return true
     }
@@ -66,223 +67,76 @@
 
   const setDecorations = StateEffect.define<DecorationSet>()
   const decorationsField = StateField.define<DecorationSet>({
+    // Seed decorations with an empty set.
     create() {
       return Decoration.none
     },
+    // Replace decorations when an effect provides a new set.
     update(deco, tr) {
       for (const effect of tr.effects) {
         if (effect.is(setDecorations)) return effect.value
       }
       return deco.map(tr.changes)
     },
+    // Expose the decorations to CodeMirror view.
     provide: (field) => EditorView.decorations.from(field)
   })
 
   const initial = createInitialState()
   tokPaths = initial.tokPaths
   let editorState = $state<StructuralEditorState>(initial.state)
+  let sourceError = $state<string | null>(null)
+  let sourceText = $state(initial.state.projectionText)
 
+  // Emit updates whenever the root node changes.
   $effect(() => {
     if (editorState.root === lastRoot) return
     lastRoot = editorState.root
     dispatch('rootChange', editorState.root)
   })
 
-  function getSpan(path: number[]): Span | undefined {
-    return editorState.spansByPath.get(serializePath(path))
+  // Sync state and view changes through shared logic.
+  function applyState(next: StructuralEditorState) {
+    editorState = setStateAndSync(
+      next,
+      view,
+      setDecorations,
+      highlightRegistry,
+      focusWidget
+    )
   }
 
-  function buildSelection(): EditorSelection {
-    if (editorState.mode === 'insert') {
-      const span = getSpan(editorState.currentTokPath)
-      const range = getTextRange(span)
-      const caret = clamp(range.from + editorState.cursorOffset, range.from, range.to)
-      return EditorSelection.single(caret)
+  // Parse Svelte source and sync the structural editor tree.
+  function applySvelteSource(source: string) {
+    try {
+      const nextRoot = susySvelteProjection(source)
+      const baseState: StructuralEditorState = {
+        ...editorState,
+        mode: 'normal',
+        currentPath: [],
+        currentTokPath: [],
+        cursorOffset: 0
+      }
+      const rebuilt = rebuildProjection(nextRoot, baseState)
+      tokPaths = rebuilt.tokPaths
+      sourceError = null
+      applyState({
+        ...rebuilt.state,
+        currentPath: [],
+        currentTokPath: tokPaths[0] ?? []
+      })
+    } catch (error) {
+      sourceError = error instanceof Error ? error.message : 'Invalid Svelte source.'
     }
-
-    const span = getSpan(editorState.currentPath)
-    if (!span) return EditorSelection.single(0)
-    const caret = span.textFrom ?? span.from
-    return EditorSelection.single(caret)
   }
 
-  function buildDecorations(): DecorationSet {
-    const decorations: Array<Range<Decoration>> = []
-
-    const visit = (token: SusyNode, path: number[]) => {
-      const span = getSpan(path)
-      if (span) {
-        const className = highlightRegistry.classFor(token.kind, token.type)
-        if (className && span.from < span.to) {
-          decorations.push(Decoration.mark({ class: className }).range(span.from, span.to))
-        }
-      }
-      token.kids?.forEach((child: SusyNode, idx: number) =>
-        visit(child, [...path, idx])
-      )
-    }
-
-    visit(editorState.root, [])
-
-    if (editorState.mode === 'normal') {
-      const focusSpan = getSpan(editorState.currentPath)
-      if (focusSpan) {
-        if (focusSpan.from === focusSpan.to) {
-          decorations.push(
-            Decoration.widget({ widget: focusWidget, side: 1 }).range(focusSpan.from)
-          )
-        } else {
-          decorations.push(
-            Decoration.mark({ class: 'cm-structural-focus' }).range(
-              focusSpan.from,
-              focusSpan.to
-            )
-          )
-        }
-      }
-    }
-
-    return Decoration.set(decorations, true)
-  }
-
-  function syncView() {
-    if (!view) return
-    const currentDoc = view.state.doc.toString()
-    const effects = [setDecorations.of(buildDecorations())]
-    const selection = buildSelection()
-    const changes =
-      currentDoc === editorState.projectionText
-        ? undefined
-        : { from: 0, to: view.state.doc.length, insert: editorState.projectionText }
-
-    view.dispatch({ changes, selection, effects })
-  }
-
-  function setState(next: StructuralEditorState) {
-    editorState = next
-    syncView()
-  }
-
-  function enterInsertMode() {
-    const target = resolveInsertTarget(editorState.root, editorState.currentPath)
-
-    setState({
-      ...editorState,
-      mode: 'insert',
-      currentPath: target.path,
-      currentTokPath: target.path,
-      cursorOffset: target.text.length
-    })
-  }
-
-  function enterNormalMode() {
-    setState({
-      ...editorState,
-      mode: 'normal',
-      currentPath: editorState.currentTokPath
-    })
-  }
-
-  function focusInputPath(path: number[]) {
-    setState({
-      ...editorState,
-      currentPath: path,
-      currentTokPath: path
-    })
-  }
-
-  function descend() {
-    const nextPath = descendPath(editorState.root, editorState.currentPath)
-    if (serializePath(nextPath) === serializePath(editorState.currentPath)) return
-    setState({
-      ...editorState,
-      currentPath: nextPath
-    })
-  }
-
-  function moveToNextInput() {
-    const nextPath = findNextTokPath(tokPaths, editorState.currentTokPath)
-    if (!nextPath) return
-    focusInputPath(nextPath)
-  }
-
-  function moveToPrevInput() {
-    const prevPath = findPrevTokPath(tokPaths, editorState.currentTokPath)
-    if (!prevPath) return
-    focusInputPath(prevPath)
-  }
-
-  function insertChar(char: string) {
-    const path = editorState.currentTokPath
-    const token = getNodeByPath(editorState.root, path)
-    if (!token) return
-    const text = token.text ?? ''
-    const offset = clamp(editorState.cursorOffset, 0, text.length)
-    const nextText = text.slice(0, offset) + char + text.slice(offset)
-    const nextRoot = updateTokenText(editorState.root, path, nextText)
-    const baseState: StructuralEditorState = {
-      ...editorState,
-      mode: 'insert',
-      currentPath: path,
-      currentTokPath: path,
-      cursorOffset: offset + char.length
-    }
-    const rebuilt = rebuildProjection(nextRoot, baseState)
-    tokPaths = rebuilt.tokPaths
-    setState(rebuilt.state)
-  }
-
-  function isPrintable(event: KeyboardEvent): boolean {
-    if (event.ctrlKey || event.metaKey || event.altKey) return false
-    if (event.key.length !== 1) return false
-    return true
-  }
-
-  function handleKey(event: KeyboardEvent): boolean {
-    if (editorState.mode === 'normal') {
-      if (event.key === 'i' && !event.shiftKey) {
-        enterInsertMode()
-        return true
-      }
-      if (event.key === 'Enter' && event.shiftKey) {
-        descend()
-        return true
-      }
-      if (event.key === 'Enter') {
-        descend()
-        return true
-      }
-      if (event.key === 'Tab') {
-        if (event.shiftKey) moveToPrevInput()
-        else moveToNextInput()
-        return true
-      }
-      if (event.key === 'Escape') return true
-      return true
-    }
-
-    if (editorState.mode === 'insert') {
-      if (event.key === 'Escape') {
-        enterNormalMode()
-        return true
-      }
-      if (event.key === 'Enter') return true
-      if (isPrintable(event)) {
-        insertChar(event.key)
-        return true
-      }
-      return true
-    }
-
-    return false
-  }
-
+  // Clamp selection updates to the current token span.
   const updateListener = EditorView.updateListener.of((update) => {
     if (!view) return
     if (!update.selectionSet) return
 
     if (editorState.mode === 'insert') {
-      const span = getSpan(editorState.currentTokPath)
+      const span = getSpan(editorState, editorState.currentTokPath)
       const range = getTextRange(span)
       const head = update.state.selection.main.head
       const clamped = clamp(head, range.from, range.to)
@@ -299,7 +153,7 @@
     }
 
     if (editorState.mode === 'normal') {
-      const span = getSpan(editorState.currentPath)
+      const span = getSpan(editorState, editorState.currentPath)
       if (!span) return
       const caret = span.textFrom ?? span.from
       const selection = update.state.selection.main
@@ -309,7 +163,46 @@
     }
   })
 
+  // Update the structural editor when source edits occur.
+  const sourceUpdateListener = EditorView.updateListener.of((update) => {
+    if (!update.docChanged) return
+    sourceText = update.state.doc.toString()
+    applySvelteSource(sourceText)
+  })
+
+  // Initialize the editor view on mount.
   onMount(() => {
+    sourceView = new EditorView({
+      parent: sourceHost,
+      state: EditorState.create({
+        doc: sourceText,
+        extensions: [
+          EditorState.allowMultipleSelections.of(false),
+          EditorView.lineWrapping,
+          sourceUpdateListener,
+          EditorView.theme({
+            '&': {
+              height: '100%',
+              fontFamily: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontSize: '13px',
+              backgroundColor: 'rgba(2, 6, 23, 0.7)',
+              color: 'rgb(226, 232, 240)'
+            },
+            '.cm-content': {
+              padding: '10px',
+              caretColor: 'rgba(56, 189, 248, 0.95)'
+            },
+            '.cm-scroller': {
+              overflow: 'auto'
+            },
+            '.cm-cursor': {
+              borderLeftColor: 'rgba(56, 189, 248, 0.95)'
+            }
+          })
+        ]
+      })
+    })
+
     view = new EditorView({
       parent: host,
       state: EditorState.create({
@@ -318,6 +211,7 @@
           EditorState.allowMultipleSelections.of(false),
           EditorView.editable.of(true),
           EditorView.domEventHandlers({
+            // Focus a token based on the click position.
             mousedown: (event) => {
               if (!view) return false
               if (editorState.mode !== 'normal') return false
@@ -331,7 +225,7 @@
               const inputPath = isSusyTok(token)
                 ? path
                 : resolveInsertTarget(editorState.root, path).path
-              setState({
+              applyState({
                 ...editorState,
                 currentPath: path,
                 currentTokPath: inputPath
@@ -339,10 +233,15 @@
               view.focus()
               return false
             },
+            // Route keyboard input through structural editor logic.
             keydown: (event) => {
-              const handled = handleKey(event)
-              if (handled) event.preventDefault()
-              return handled
+              const result = handleKey(event, editorState, tokPaths)
+              if (result.handled) {
+                event.preventDefault()
+                tokPaths = result.tokPaths
+                applyState(result.state)
+              }
+              return result.handled
             }
           }),
           updateListener,
@@ -383,19 +282,36 @@
       })
     })
 
-    syncView()
+    syncView(view, editorState, setDecorations, highlightRegistry, focusWidget)
   })
 
+  // Tear down the editor view on destroy.
   onDestroy(() => {
     view?.destroy()
     view = null
+    sourceView?.destroy()
+    sourceView = null
   })
 
   let crumbs = $state<BreadcrumbItem[]>([])
 
+  // Update breadcrumbs when the current path changes.
   $effect(() => {
     crumbs = buildBreadcrumbs(editorState, editorState.currentPath)
   })
+
+  // Blur the editor when the mode badge is clicked.
+  function blurOnClick() {
+    view?.dom.blur()
+  }
+
+  // Blur the editor when the mode badge is activated by keyboard.
+  function blurOnKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      view?.dom.blur()
+    }
+  }
 </script>
 
 <div class="flex h-full min-h-0 flex-col gap-4 p-6">
@@ -407,16 +323,25 @@
       class="text-xs text-surface-400"
       role="button"
       tabindex="0"
-      onclick={() => view?.dom.blur()}
-      onkeydown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          view?.dom.blur()
-        }
-      }}
+      onclick={blurOnClick}
+      onkeydown={blurOnKeydown}
     >
       Mode: <span class="font-semibold text-surface-100">{editorState.mode}</span>
     </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
+      Svelte Source
+    </div>
+    <div
+      class="h-[7rem] min-h-0 rounded-xl border border-surface-700/60 bg-surface-950/70"
+    >
+      <div class="h-full min-h-0" bind:this={sourceHost}></div>
+    </div>
+    {#if sourceError}
+      <div class="text-xs text-amber-300">{sourceError}</div>
+    {/if}
   </div>
 
   <div class="flex-1 min-h-0 rounded-xl border border-surface-700/60 bg-surface-900/70">

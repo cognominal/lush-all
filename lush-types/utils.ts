@@ -48,6 +48,7 @@ function weedoutKeys(value: unknown, keys: Set<string>): unknown {
   return value
 }
 
+// Remove selected keys from a YAML value and stringify.
 export function yaml_weedout(input: unknown, keys: string[] | string): string {
   const source = typeof input === 'string' ? yamlParse(input) : input
   const keyList =
@@ -58,6 +59,7 @@ export function yaml_weedout(input: unknown, keys: string[] | string): string {
   return yamlStringify(stripped)
 }
 
+// Pick a value from a compiled Svelte AST path.
 export function sveltePick(
   codeOrPath: string,
   picker: Picker,

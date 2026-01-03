@@ -9,9 +9,7 @@ import type {
 import type { Replacer } from 'yaml/dist/doc/Document'
 
 declare module 'yaml' {
-  /**
-   * Convert a YAML string or value into multi-line lush tokens.
-   */
+  // Convert a YAML string or value into multi-line lush tokens.
   export function lushify(
     value: any,
     replacer?:

@@ -1,6 +1,8 @@
 export const SPACE_TYPE = 'Space'
 export const NAKED_STRING_TYPE = 'NakedString'
 
+export { susySvelteProjection } from './susy-svelte-projection.ts'
+
 export function susyText(token) {
   if (!token) return ''
   if (typeof token.text === 'string') return token.text

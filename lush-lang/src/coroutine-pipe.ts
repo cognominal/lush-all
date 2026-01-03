@@ -52,6 +52,7 @@ class AsyncQueue<T> {
   }
 }
 
+// Stream parsed JSON array elements from a chunked source.
 export async function* streamJsonArrayElements(
   source: AsyncIterable<string> | Iterable<string>,
   createParser: ArrayValueParserFactory
@@ -82,6 +83,7 @@ export async function* streamJsonArrayElements(
   }
 }
 
+// Run a parser stream and handle each JSON array element.
 export async function runJsonArrayPipe(
   source: AsyncIterable<string> | Iterable<string>,
   createParser: ArrayValueParserFactory,

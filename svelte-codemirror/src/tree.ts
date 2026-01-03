@@ -1,9 +1,11 @@
 import type { SusyLeaf, SusyNode } from '../../lush-types/index.ts'
 
+// Serialize a node path into a stable string key.
 export function serializePath(path: number[]): string {
   return JSON.stringify(path)
 }
 
+// Walk the tree to find the node at a path.
 export function getNodeByPath(
   root: SusyNode,
   path: number[]
@@ -17,10 +19,12 @@ export function getNodeByPath(
   return current
 }
 
+// Narrow a SusyNode to a leaf token.
 export function isSusyLeaf(token: SusyNode): token is SusyLeaf {
   return typeof token.text === 'string'
 }
 
+// Alias leaf detection for token guards.
 export function isSusyTok(token: SusyNode): token is SusyLeaf {
   return isSusyLeaf(token)
 }

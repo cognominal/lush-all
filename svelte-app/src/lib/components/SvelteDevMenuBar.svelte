@@ -9,18 +9,22 @@
   let openMenuId: string | null = null
   let root: HTMLElement | null = null
 
+  // Narrow menu items to submenu entries.
   function isSubmenu(item: MenuItem): item is MenuMenu {
     return item.kind === 'submenu'
   }
 
+  // Close any open menu dropdowns.
   function closeMenus() {
     openMenuId = null
   }
 
+  // Emit a menu action event to the app shell.
   function emit(detail: MenuActionEventDetail) {
     window.dispatchEvent(new CustomEvent<MenuActionEventDetail>('lush:menu-action', { detail }))
   }
 
+  // Dispatch a menu action and close the menu.
   function clickItem(item: MenuItem) {
     if (item.kind !== 'action') return
     if (item.disabled) return
@@ -28,11 +32,14 @@
     closeMenus()
   }
 
+  // Toggle a menu dropdown by id.
   function onMenuButtonClick(menuId: string) {
     openMenuId = openMenuId === menuId ? null : menuId
   }
 
+  // Install global listeners for closing menus.
   function installGuards() {
+    // Close menus when clicking outside the menu bar.
     const onPointerDown = (e: Event) => {
       if (!openMenuId) return
       const target = e.target
@@ -41,6 +48,7 @@
       closeMenus()
     }
 
+    // Close menus on Escape key.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       closeMenus()
@@ -56,9 +64,11 @@
   }
 
   let teardown: (() => void) | null = null
+  // Register guard listeners on mount.
   onMount(() => {
     teardown = installGuards()
   })
+  // Clean up guard listeners on destroy.
   onDestroy(() => {
     teardown?.()
     teardown = null
