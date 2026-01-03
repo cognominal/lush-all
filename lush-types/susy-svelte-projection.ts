@@ -129,6 +129,7 @@ const assignTokenIdx = (node: SusyNode, tokenIdxRef: { value: number }) => {
   }
 };
 
+// Project Svelte source into a SusyNode tree.
 export const susySvelteProjection = (
   source: string,
   filename = "lk.svelte"
