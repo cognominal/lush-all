@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { sveltePick, yaml_weedout } from './utils'
+import { lookupPatternValue, sveltePick, yaml_weedout } from './utils'
 
 type AttributeLike = {
   name?: unknown
@@ -149,5 +149,55 @@ describe('sveltePick', () => {
         ''
       ].join('\n')
     )
+  })
+})
+
+// Covers wildcard lookup precedence and quoting.
+describe('lookupPatternValue', () => {
+  // Ensures exact keys win over wildcard candidates.
+  test('prefers exact keys over wildcards', () => {
+    const source = {
+      'foo.bar': 'exact',
+      '*.bar': 'suffix-wildcard',
+      'foo.*': 'prefix-wildcard',
+      '*': 'fallback'
+    }
+    expect(lookupPatternValue(source, 'foo.bar')).toBe('exact')
+  })
+
+  // Verifies the fallback order when the exact key is missing.
+  test('falls back to wildcard suffix, then prefix, then *', () => {
+    const source = {
+      '*.bar': 'suffix-wildcard',
+      'foo.*': 'prefix-wildcard',
+      '*': 'fallback'
+    }
+    expect(lookupPatternValue(source, 'foo.bar')).toBe('suffix-wildcard')
+  })
+
+  // Confirms foo.* is selected when the suffix wildcard is absent.
+  test('uses foo.* when *.bar is missing', () => {
+    const source = {
+      'foo.*': 'prefix-wildcard',
+      '*': 'fallback'
+    }
+    expect(lookupPatternValue(source, 'foo.bar')).toBe('prefix-wildcard')
+  })
+
+  // Confirms * is the final fallback.
+  test('uses * as the ultimate fallback', () => {
+    const source = {
+      '*': 'fallback'
+    }
+    expect(lookupPatternValue(source, 'foo.bar')).toBe('fallback')
+  })
+
+  // Ensures quoted segments with dots are preserved in lookups.
+  test('supports quoted segments with dots in the key', () => {
+    const source = new Map<string, string>([
+      ["*.'bar.baz'", 'suffix-wildcard'],
+      ['*', 'fallback']
+    ])
+    expect(lookupPatternValue(source, "foo.'bar.baz'")).toBe('suffix-wildcard')
   })
 })
