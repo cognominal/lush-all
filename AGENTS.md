@@ -7,7 +7,12 @@
 - Use `bun` to install and run scripts; avoid adding `npm`/`pnpm`/`yarn`
   workflows.
 - Use `bun test` for tests; do not add new Jest tests.
+- When using dev-only deps in TypeScript (for example `bun:test`), add the
+  matching type packages and tsconfig `types` entries so imports resolve.
 - Builds must be clean: no errors and no warnings.
+- Keep Neovim open buffers free of LSP/tsserver warnings or errors.
+- Resolve diagnostics from module resolution, export maps, or tsconfig
+  mismatches, not just missing type dependencies.
 - For Markdown, ensure blank lines around headings and lists to avoid nvim
   lint errors.
 - When creating or modifying `.md` files, normalize blank lines around
