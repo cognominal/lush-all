@@ -4,7 +4,8 @@
 
 `StructuralEditor` renders the structural editor UI and manages the
 CodeMirror view, selection, and breadcrumb updates for the sample
-structural tree.
+structural tree. It supports loading Svelte, JavaScript, or TypeScript
+source.
 
 ## Usage
 
@@ -24,6 +25,8 @@ structural tree.
   content sync.
 - Tracks the current structural path and token path to support normal
   and insert modes.
+- Parses Svelte, JavaScript, or TypeScript source based on the selected
+  language and updates the Susy projection.
 - Builds breadcrumbs from the root to the focused node.
 
 ## Keyboard controls

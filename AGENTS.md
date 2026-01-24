@@ -22,11 +22,14 @@
   reactivity blocks.
 - Follow Svelte agent documentation (svelte.dev docs/llms) for Svelte
   changes.
+- For UI/layout verification, use the instrumented Chrome session when
+  useful.
 - Non-trivial UI changes should be implemented as separate components or by
   reusing Svelte Skeleton components.
 - As a rule of thumb, pages or components should stay at or under 300 lines;
   split them when they grow larger.
 - Generated `.md` output should keep lines under 80 characters.
+- Keep `svelte-app/docs/component-tree.md` up to date with component usage.
 - When necessary access code from `~/git/sveltejs--svelte` for the svelte
   compiler or ``~/git/sveltejs-svelte.dev`` for codes examples using svelte i/o
 = Use tailwind css for new code.

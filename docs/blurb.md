@@ -2,10 +2,11 @@
 
 Fulfilling Larry Wall's aspiration of meshing language and evolving them.
 
-- from nushell and jq, and using coroutines, it supports typed pipes (done for json) of
-  infinite steams.
-- with an adapted YAML (WIP) called lyaml (for lush yaml), to interpolate or match variables.
-- styled forts as syntax as a vector of better expressivity,
+- from nushell and jq, and using coroutines, it supports typed pipes
+ (done for json) of infinite steams.
+- with an adapted YAML (WIP) called lyaml (for lush yaml),
+to interpolate or match variables.
+- styled forts as syntax as a vector of better expressibility,
 - lushed, a mostly structural editor. The ecosystem had to thought with the language.
 
 ## images
@@ -17,7 +18,7 @@ pipe image there
 ## Deliverables and modes
 
 - nuLush: A sveltekit supporting lushed.
-- tauLush: same but as an app runnning in tauri.
+- tauLush: same but as an app running in tauri.
 
 Lush as many avatars or modes, lish as a unix shell, leste
 as leaner svelte.
@@ -25,7 +26,7 @@ as leaner svelte.
 ## Logical architecture
 
 Lush is an AST-first, projectional language system centered on a canonical
-model called Astre. A Program susy is edited with a suzyed like lushed. A
+model called Astre. A program susy is edited with a suzyed like lushed. A
 susy is a styled surface syntax that uses indentation and font style as
 primary channels, while relegating color and emphasis to secondary channels.
 
@@ -35,6 +36,7 @@ valid. Stable node identities (naids) and symbol identities (saids) enable
 reliable structural diffing, lineage tracking via paids, and robust
 refactoring semantics.
 I
+
 ## GUI and TUI
 
 Lush targets rich GUI environments (e.g., Monaco (TBD), CodeMirror (in
