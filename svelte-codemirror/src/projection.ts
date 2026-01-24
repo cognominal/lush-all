@@ -15,6 +15,19 @@ type SubtreeProjection = {
 }
 
 // Project a subtree into text, spans, and token paths.
+//
+//   projectSubtree recursively flattens a SusyNode subtree into a single string, while tracking where each node’s text lands in the flattened result. For leaf nodes
+// it returns the token text and a span for the current path. For non-leaf nodes it projects each child, inserts spaces between child texts when needed, offsets
+// child spans into the combined text, and aggregates all token paths. It also records a span for the current node covering the entire combined text.
+//
+// Key behaviors:
+//
+// - Leaf: uses token.text ?? '', span from 0..length, and includes path in tokPaths only if isSusyTok(token) is true.
+// - Non-leaf: concatenates child projections with single spaces only between non-empty child texts, offsets each child’s spans into the combined text, and
+//   collects tokPaths.
+// - Always stores a span for the current path covering 0..combinedText.length.
+// - Used by projectTree as the root projection.
+
 function projectSubtree(token: SusyNode, path: number[]): SubtreeProjection {
   if (!token.kids || token.kids.length === 0) {
     const text = token.text ?? ''

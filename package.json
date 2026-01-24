@@ -2,13 +2,13 @@
   "name": "lush-all",
   "private": true,
   "packageManager": "bun@1.1.34",
-  "workspaces": ["yaml", "lush-types", "lush-term-editor"],
+  "workspaces": ["yaml", "lush-types", "lush-term-editor", "vanilla-lush-drive"],
   "devDependencies": {
     "@types/node": "^22.10.2"
   },
   "scripts": {
     "test": "bun test --cwd yaml && bun test --cwd lush-types && bun test --cwd lush-term-editor",
-    "install:all": "bun install --cwd yaml && bun install --cwd lush-types && bun install --cwd lush-term-editor",
+    "install:all": "bun install --cwd yaml && bun install --cwd lush-types && bun install --cwd lush-term-editor && bun install --cwd vanilla-lush-drive",
     "dev": "bun run --cwd svelte-app dev",
     "preview": "bun run --cwd svelte-app preview",
     "playright-tests": "bun run --cwd svelte-app test:e2e",

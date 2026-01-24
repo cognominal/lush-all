@@ -1,9 +1,12 @@
-import { EditorSelection, type StateEffect } from '@codemirror/state'
+import {
+  EditorSelection,
+  type Range,
+  type StateEffectType
+} from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
   type EditorView,
-  type Range,
   type WidgetType
 } from '@codemirror/view'
 import {
@@ -154,9 +157,9 @@ export function buildDecorations(
         decorations.push(Decoration.mark({ class: className }).range(span.from, span.to))
       }
     }
-    token.kids?.forEach((child: SusyNode, idx: number) =>
+    token.kids?.forEach((child: SusyNode, idx: number) => {
       visit(child, [...path, idx])
-    )
+    })
   }
 
   visit(state.root, [])
@@ -186,7 +189,7 @@ export function buildDecorations(
 export function syncView(
   view: EditorView | null,
   state: StructuralEditorState,
-  setDecorations: StateEffect<DecorationSet>,
+  setDecorations: StateEffectType<DecorationSet>,
   highlightRegistry: HighlightRegistry,
   focusWidget: WidgetType
 ): void {
@@ -206,7 +209,7 @@ export function syncView(
 export function setStateAndSync(
   next: StructuralEditorState,
   view: EditorView | null,
-  setDecorations: StateEffect<DecorationSet>,
+  setDecorations: StateEffectType<DecorationSet>,
   highlightRegistry: HighlightRegistry,
   focusWidget: WidgetType
 ): StructuralEditorState {

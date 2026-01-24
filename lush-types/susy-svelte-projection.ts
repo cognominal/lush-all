@@ -2,12 +2,6 @@ import { parse } from "svelte/compiler";
 import YAML from "yaml";
 import type { LushTokenKind, SusyNode, TokenTypeName } from "lush-types";
 
-declare global {
-  interface ImportMeta {
-    main?: boolean;
-  }
-}
-
 type AstNode = {
   type: string;
   start?: number;
@@ -21,7 +15,9 @@ type BuiltNode = {
   end: number;
 };
 
-const SVELTE_KIND = "Svelte" as unknown as LushTokenKind;
+type ImportMetaWithMain = ImportMeta & { main?: boolean };
+
+const SVELTE_KIND: LushTokenKind = "svelte";
 
 // Check for a non-null object.
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -149,7 +145,9 @@ export const susySvelteProjection = (
 };
 
 // called if that file is executed stand alone
-if (import.meta.main) {
+const importMeta = import.meta as ImportMetaWithMain;
+
+if (importMeta.main) {
   // Run CLI mode when invoked directly.
   void (async () => {
     const { readFileSync } = await import("node:fs");

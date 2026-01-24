@@ -41,6 +41,7 @@ describe('sveltePick', () => {
       '<h1 id="an_id">text</h1>',
       'ast.html.children.0.attributes'
     )
+
     expect(attributeNames(result)).toEqual(['id'])
   })
 

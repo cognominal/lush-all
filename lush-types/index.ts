@@ -101,7 +101,7 @@ export interface SusyINode {
   x?: number
   ast?: unknown // ast node, for svelte, that would be an augmented tree
   completion?: CompletionTokenMetadata
-  stemCell?:
+  stemCell?: boolean
 }
 
 export type SusyLeaf = SusyINode & { text: string }
@@ -117,6 +117,8 @@ export interface SusyEd {
 }
 
 export { susySvelteProjection } from './susy-svelte-projection'
+export { susyJsProjection } from './src/susy-js-projection'
+export { susyTsProjection } from './src/susy-ts-projection'
 
 
 // Render a SusyNode subtree into plain text.
@@ -196,6 +198,21 @@ export type MenuMenu = Extract<MenuItem, { kind: 'submenu' }>
 
 export type MenuBarSpec = {
   menus: readonly MenuMenu[]
+}
+
+export type LushProjectionDrv = {
+  id: string
+  kind: 'projection'
+}
+
+export type LushEmbedderDrv = {
+  id: string
+  kind: 'embedding'
+}
+
+export type LushEditorDrv = {
+  id: string
+  kind: 'editor'
 }
 
 export type MenuActionEventDetail =

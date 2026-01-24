@@ -96,7 +96,7 @@ export interface SusyINode {
   text?: string
   kids?: SusyNode[]
   x?: number
-  ast?: any
+  ast?: unknown
   completion?: CompletionTokenMetadata
 }
 
@@ -113,6 +113,16 @@ export interface SusyEd {
 }
 
 export function susySvelteProjection(
+  source: string,
+  filename?: string
+): SusyNode
+
+export function susyJsProjection(
+  source: string,
+  filename?: string
+): SusyNode
+
+export function susyTsProjection(
   source: string,
   filename?: string
 ): SusyNode
@@ -161,6 +171,21 @@ export type MenuMenu = Extract<MenuItem, { kind: 'submenu' }>
 
 export type MenuBarSpec = {
   menus: readonly MenuMenu[]
+}
+
+export type LushProjectionDrv = {
+  id: string
+  kind: 'projection'
+}
+
+export type LushEmbedderDrv = {
+  id: string
+  kind: 'embedding'
+}
+
+export type LushEditorDrv = {
+  id: string
+  kind: 'editor'
 }
 
 export type MenuActionEventDetail =
