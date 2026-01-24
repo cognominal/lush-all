@@ -2,8 +2,8 @@ export const SPACE_TYPE = 'Space'
 export const NAKED_STRING_TYPE = 'NakedString'
 
 export { susySvelteProjection } from './susy-svelte-projection'
-export { susyJsProjection } from './src/susy-js-projection'
-export { susyTsProjection } from './src/susy-ts-projection'
+export { susyJsProjection } from './susy-js-projection'
+export { susyTsProjection } from './susy-ts-projection'
 
 export function susyText(token) {
   if (!token) return ''

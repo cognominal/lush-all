@@ -117,8 +117,8 @@ export interface SusyEd {
 }
 
 export { susySvelteProjection } from './susy-svelte-projection'
-export { susyJsProjection } from './src/susy-js-projection'
-export { susyTsProjection } from './src/susy-ts-projection'
+export { susyJsProjection } from './susy-js-projection'
+export { susyTsProjection } from './susy-ts-projection'
 
 
 // Render a SusyNode subtree into plain text.

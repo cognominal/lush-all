@@ -1,7 +1,11 @@
-import { Parser } from 'acorn'
-import { Parser } from 'acorn'
-import { tsPlugin } from '@sveltejs/acorn-typescript'
+import { parse } from 'acorn'
 import type { LushTokenKind, SusyNode, TokenTypeName } from 'lush-types'
+
+const JS_KIND: LushTokenKind = 'js'
+
+// Check for a non-null object.
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
 
 type AstNode = {
   type: string
@@ -16,13 +20,7 @@ type BuiltNode = {
   end: number
 }
 
-const TS_KIND: LushTokenKind = 'js'
-
-// Check for a non-null object.
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
-
-// Narrow unknown to a TS AST node with spans.
+// Narrow unknown to an Acorn AST node with spans.
 const isAstNode = (value: unknown): value is AstNode => {
   if (!isRecord(value)) return false
   const type = value.type
@@ -60,7 +58,7 @@ const makeSpaceNode = (source: string, start: number, end: number): BuiltNode =>
   const text = source.slice(start, end)
   return {
     susy: {
-      kind: TS_KIND,
+      kind: JS_KIND,
       type: 'Space' as TokenTypeName,
       tokenIdx: 0,
       text,
@@ -71,7 +69,7 @@ const makeSpaceNode = (source: string, start: number, end: number): BuiltNode =>
   }
 }
 
-// Convert a TS AST node into a Susy subtree.
+// Convert an Acorn AST node into a Susy subtree.
 const buildSusy = (node: AstNode, source: string, nameAsSon?: string): BuiltNode => {
   const { start, end } = getSpan(node)
   const children = collectChildren(node).map((entry) =>
@@ -92,7 +90,7 @@ const buildSusy = (node: AstNode, source: string, nameAsSon?: string): BuiltNode
   }
 
   const susy: SusyNode = {
-    kind: TS_KIND,
+    kind: JS_KIND,
     type: (node.type ?? 'Program') as TokenTypeName,
     tokenIdx: 0
   }
@@ -113,12 +111,9 @@ const assignTokenIdx = (node: SusyNode, tokenIdxRef: { value: number }) => {
   }
 }
 
-// Build a TS-enabled Acorn parser.
-const TypeScriptParser = Parser.extend(tsPlugin({ jsx: false }))
-
-// Project TS source into a SusyNode tree.
-export const susyTsProjection = (source: string, filename = 'source.ts'): SusyNode => {
-  const ast = TypeScriptParser.parse(source, {
+// Project JS source into a SusyNode tree.
+export const susyJsProjection = (source: string, filename = 'source.js'): SusyNode => {
+  const ast = parse(source, {
     ecmaVersion: 'latest',
     sourceType: 'module',
     locations: true,
