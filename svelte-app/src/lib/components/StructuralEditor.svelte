@@ -8,6 +8,7 @@
     susySvelteProjection,
     susyTsProjection
   } from 'lush-types'
+  import { SplitPane } from '@rich_harris/svelte-split-pane'
   import AcornYamlPanel from '$lib/components/AcornYamlPanel.svelte'
   import StructuralEditorTreePane from '$lib/components/StructuralEditorTreePane.svelte'
 
@@ -27,13 +28,37 @@
     language: SourceLanguage
   }
 
-  const SAMPLE_OPTIONS: SampleOption[] = [
-    { label: 'Sample: JS', value: '/samples/sample.js', language: 'js' },
-    { label: 'Sample: TS', value: '/samples/sample.ts', language: 'ts' },
-    { label: 'Sample: Svelte', value: '/samples/sample.svelte', language: 'svelte' },
-    { label: 'Sample: H1', value: '/samples/h1.svelte', language: 'svelte' },
-    { label: 'Sample: H1 attrs', value: '/samples/h1-attr.svelte', language: 'svelte' }
-  ]
+  const sampleContent = import.meta.glob<string>('../samples/*.{svelte,js,ts}', {
+    eager: true,
+    query: '?raw',
+    import: 'default'
+  })
+
+  // Map file extensions to the source language.
+  function getSampleLanguage(path: string): SourceLanguage {
+    if (path.endsWith('.ts')) return 'ts'
+    if (path.endsWith('.js')) return 'js'
+    return 'svelte'
+  }
+
+  // Format a file path into a readable label.
+  function formatSampleLabel(path: string): string {
+    const name = path.split('/').pop() ?? path
+    return `Sample: ${name.replace(/\.[^.]+$/, '')}`
+  }
+
+  // Build sample options from the discovered file list.
+  function buildSampleOptions(): SampleOption[] {
+    return Object.keys(sampleContent)
+      .sort((a, b) => a.localeCompare(b))
+      .map((path) => ({
+        label: formatSampleLabel(path),
+        value: path,
+        language: getSampleLanguage(path)
+      }))
+  }
+
+  const SAMPLE_OPTIONS = buildSampleOptions()
 
   const dispatch = createEventDispatcher<{ rootChange: SusyNode | null }>()
 
@@ -114,17 +139,14 @@
   }
 
   // Load a bundled sample file into the editor.
-  async function loadSampleFile(path: string) {
-    try {
-      const response = await fetch(path)
-      if (!response.ok) throw new Error('Failed to load sample.')
-      sourceText = await response.text()
-    } catch (error) {
+  function loadSampleFile(path: string) {
+    const sample = sampleContent[path]
+    if (!sample) {
       sourceText = ''
-      sourceError =
-        error instanceof Error
-          ? error.message
-          : 'Failed to load the selected sample.'
+      sourceError = 'Failed to load the selected sample.'
+    } else {
+      sourceText = sample
+      sourceError = null
     }
     hasSelection = Boolean(sourceText?.trim())
     sourceView?.dispatch({
@@ -143,7 +165,7 @@
     if (!selection) return
     sourceLanguage = selection.language
     sourceError = null
-    void loadSampleFile(selection.value)
+    loadSampleFile(selection.value)
   }
 
   const filteredSamples = $derived(
@@ -157,7 +179,7 @@
   })
 
   // Track root updates from the structural editor.
-  function handleTreeRootChange(event: CustomEvent<SusyNode>) {
+  function handleTreeRootChange(event: CustomEvent<SusyNode | null>) {
     treeRoot = event.detail
   }
 
@@ -247,10 +269,9 @@
           <span class="sr-only">Sample</span>
           <select
             class="rounded-md border border-surface-700/70 bg-surface-900/70 px-2 py-1 text-xs text-surface-100"
-            onchange={(event) =>
-              selectSample((event.currentTarget as HTMLSelectElement).value)}
+            onchange={() => selectSample(selectedSample)}
             disabled={isParsing}
-            value={selectedSample}
+            bind:value={selectedSample}
           >
             <option value={DEFAULT_SAMPLE_OPTION}>
               Select {LANGUAGE_LABELS[sourceLanguage]} sample…
@@ -272,13 +293,33 @@
     {/if}
   </div>
 
-  <StructuralEditorTreePane
-    root={treeRoot}
-    on:rootChange={handleTreeRootChange}
-    on:modeChange={handleModeChange}
-  />
+  <div class="h-full min-h-0 flex-1">
+    <SplitPane
+      type="vertical"
+      id="structural-panels"
+      min="220px"
+      max="-200px"
+      pos="60%"
+      --color="rgba(var(--color-surface-500) / 0.25)"
+      --thickness="12px"
+    >
+      {#snippet a()}
+        <div class="min-h-0">
+          <StructuralEditorTreePane
+            root={treeRoot}
+            on:rootChange={handleTreeRootChange}
+            on:modeChange={handleModeChange}
+          />
+        </div>
+      {/snippet}
 
-  <AcornYamlPanel sourceText={hasSelection ? sourceText : null} language={sourceLanguage} />
+      {#snippet b()}
+        <div class="min-h-0">
+          <AcornYamlPanel sourceText={hasSelection ? sourceText : null} language={sourceLanguage} />
+        </div>
+      {/snippet}
+    </SplitPane>
+  </div>
 
   {#if !hasSelection}
     <div class="text-xs text-surface-400">
@@ -286,3 +327,33 @@
     </div>
   {/if}
 </div>
+
+<style>
+  :global([data-pane='structural-panels'] > svelte-split-pane-divider) {
+    background-color: rgba(var(--color-tertiary-400) / 0.12);
+    transition:
+      background-color 120ms ease,
+      filter 120ms ease;
+  }
+
+  :global([data-pane='structural-panels'] > svelte-split-pane-divider::after) {
+    height: 4px;
+    background-color: rgba(var(--color-tertiary-400) / 0.9);
+    box-shadow: 0 0 0 1px rgba(var(--color-tertiary-400) / 0.35);
+    transition:
+      background-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  :global([data-pane='structural-panels'] > svelte-split-pane-divider:hover) {
+    background-color: rgba(var(--color-secondary-400) / 0.16);
+    filter: drop-shadow(0 0 10px rgba(var(--color-secondary-400) / 0.25));
+  }
+
+  :global([data-pane='structural-panels'] > svelte-split-pane-divider:hover::after) {
+    background-color: rgba(var(--color-secondary-400) / 1);
+    box-shadow:
+      0 0 0 1px rgba(var(--color-secondary-300) / 0.6),
+      0 0 18px rgba(var(--color-secondary-400) / 0.35);
+  }
+</style>

@@ -40,7 +40,8 @@ EditorWorkspace
 ├── StructuralEditor
 │   ├── AcornYamlPanel
 │   │   └── IndexedYamlPanel
-│   └── BreadcrumbBar
+│   └── StructuralEditorTreePane
+│       └── BreadcrumbBar
 └── SusyYamlInspector
     └── IndexedYamlPanel
 
@@ -53,6 +54,10 @@ SearchHistoryDropdown
 StructuralEditor
 ├── AcornYamlPanel
 │   └── IndexedYamlPanel
+└── StructuralEditorTreePane
+    └── BreadcrumbBar
+
+StructuralEditorTreePane
 └── BreadcrumbBar
 
 SusyYamlInspector

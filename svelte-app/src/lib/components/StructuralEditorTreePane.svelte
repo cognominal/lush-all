@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import { EditorState, StateEffect, StateField } from '@codemirror/state'
   import {
     Decoration,
@@ -44,6 +44,13 @@
   let tokPaths = $state<number[][]>(initial.tokPaths)
   let currentRoot = $state<SusyNode | null>(null)
   let crumbs = $state<BreadcrumbItem[]>([])
+  let lastRoot: SusyNode | null = null
+  let lastMode: StructuralEditorState['mode'] = initial.state.mode
+
+  const dispatch = createEventDispatcher<{
+    rootChange: SusyNode | null
+    modeChange: StructuralEditorState['mode']
+  }>()
 
   const highlightRegistry = createHighlightRegistry(parseHighlightYaml(highlightRaw))
 
@@ -90,6 +97,19 @@
       highlightRegistry,
       focusWidget
     )
+    emitStateChanges(editorState)
+  }
+
+  // Emit root and mode changes to the parent.
+  function emitStateChanges(nextState: StructuralEditorState) {
+    if (nextState.root !== lastRoot) {
+      lastRoot = nextState.root
+      dispatch('rootChange', nextState.root)
+    }
+    if (nextState.mode !== lastMode) {
+      lastMode = nextState.mode
+      dispatch('modeChange', nextState.mode)
+    }
   }
 
   // Update the projection state for a new root.

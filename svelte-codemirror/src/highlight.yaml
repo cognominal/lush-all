@@ -1,3 +1,4 @@
 js.keyword: bold.blue
 js.variable: italic
 Svelte.Identifier: italic
+Svelte.Tag: bold

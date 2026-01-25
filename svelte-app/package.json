@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "svelte-kit sync && vite dev",
+    "dev:nvim": "EDITOR=\"nvr --servername /tmp/nvim-inspector.sock --remote-tab\" VISUAL=\"nvr --servername /tmp/nvim-inspector.sock --remote-tab\" svelte-kit sync && vite dev",
     "build": "svelte-kit sync && vite build",
     "build:tauri": "TAURI=1 vite build",
     "preview": "vite preview",
