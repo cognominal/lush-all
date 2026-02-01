@@ -1,0 +1,12 @@
+app:
+  name: Lush Playground
+  version: 0.1.0
+  features:
+    - projection
+    - susy-trees
+    - yaml-input
+
+theme:
+  accent: cyan
+  surface: slate
+  density: compact
