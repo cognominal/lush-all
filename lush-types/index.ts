@@ -91,6 +91,7 @@ export interface SusyINode {
   ast?: unknown // ast node, for svelte, that would be an augmented tree
   completion?: CompletionTokenMetadata
   stemCell?: boolean
+  isCstToken?: boolean
 }
 
 export type SusyLeaf = SusyINode & { text: string }

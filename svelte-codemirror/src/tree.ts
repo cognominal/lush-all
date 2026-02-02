@@ -21,7 +21,7 @@ export function getNodeByPath(
 
 // Narrow a SusyNode to a leaf token.
 export function isSusyLeaf(token: SusyNode): token is SusyLeaf {
-  return typeof token.text === 'string'
+  return typeof token.text === 'string' && (!token.kids || token.kids.length === 0)
 }
 
 // Alias leaf detection for token guards.

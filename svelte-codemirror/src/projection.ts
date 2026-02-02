@@ -36,6 +36,32 @@ function projectSubtree(token: SusyNode, path: number[]): SubtreeProjection {
   let combinedText = ''
   const spansByPath = new Map<string, Span>()
   const tokPaths: number[][] = []
+
+  const canUseRanges =
+    typeof token.text === 'string' &&
+    typeof token.x === 'number' &&
+    token.kids.every((child) => typeof child.x === 'number')
+
+  if (canUseRanges) {
+    combinedText = token.text ?? ''
+    for (const [idx, child] of token.kids.entries()) {
+      const childPath = [...path, idx]
+      const childProjection = projectSubtree(child, childPath)
+      const offset = (child.x ?? 0) - (token.x ?? 0)
+      for (const [key, span] of childProjection.spansByPath.entries()) {
+        spansByPath.set(key, {
+          from: span.from + offset,
+          to: span.to + offset,
+          textFrom: span.textFrom == null ? undefined : span.textFrom + offset,
+          textTo: span.textTo == null ? undefined : span.textTo + offset
+        })
+      }
+      tokPaths.push(...childProjection.tokPaths)
+    }
+    spansByPath.set(serializePath(path), { from: 0, to: combinedText.length })
+    return { text: combinedText, spansByPath, tokPaths }
+  }
+
   let prevHadText = false
 
   token.kids.forEach((child: SusyNode, idx: number) => {

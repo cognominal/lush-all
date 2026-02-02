@@ -132,6 +132,7 @@ export interface SusyINode {
   ast?: any
   completion?: CompletionTokenMetadata
   stemCell?: boolean
+  isCstToken?: boolean
 }
 
 export type SusyLeaf = SusyINode & { text: string }
