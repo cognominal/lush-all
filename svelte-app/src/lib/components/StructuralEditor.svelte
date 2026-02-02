@@ -54,6 +54,7 @@
   }
 
   const DEFAULT_SAMPLE_OPTION = ''
+  const STORAGE_KEY = 'lush.editor.selection'
 
   type SampleOption = {
     label: string
@@ -104,6 +105,7 @@
   let sourceView: EditorView | null = null
   let tokPaths: number[][] = []
   let lastRoot: SusyNode | null = null
+  let isMounted = $state(false)
 
   const dispatch = createEventDispatcher<{
     rootChange: SusyNode
@@ -158,6 +160,22 @@
   const filteredSamples = $derived(
     SAMPLE_OPTIONS.filter((option) => option.language === sourceLanguage)
   )
+
+  function persistSelection(): void {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ language: sourceLanguage, sample: selectedSample })
+      )
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  $effect(() => {
+    if (!isMounted) return
+    persistSelection()
+  })
 
   $effect(() => {
     if (!selectedSample) return
@@ -269,6 +287,36 @@
     applySource(sourceText)
   }
 
+  // Read persisted selection from local storage.
+  function readPersistedSelection(): {
+    language: SourceLanguage
+    sample: string
+  } | null {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as unknown
+      if (!parsed || typeof parsed !== 'object') return null
+      const record = parsed as { language?: string; sample?: string }
+      const language = record.language
+      const sample = record.sample
+      if (
+        language !== 'svelte' &&
+        language !== 'js' &&
+        language !== 'ts' &&
+        language !== 'yaml'
+      ) {
+        return null
+      }
+      return {
+        language,
+        sample: typeof sample === 'string' ? sample : DEFAULT_SAMPLE_OPTION
+      }
+    } catch {
+      return null
+    }
+  }
+
   // Select a sample and sync language state.
   function selectSample(value: string) {
     selectedSample = value
@@ -325,6 +373,22 @@
 
   // Initialize the editor view on mount.
   onMount(() => {
+    const persisted = readPersistedSelection()
+    if (persisted) {
+      sourceLanguage = persisted.language
+      if (persisted.sample && sampleContent[persisted.sample]) {
+        selectedSample = persisted.sample
+        sourceText = sampleContent[persisted.sample]
+      }
+    }
+
+    if (!sourceText) {
+      const fallback = findShortestSample(sourceLanguage)
+      if (fallback) {
+        selectedSample = fallback.value
+        sourceText = sampleContent[fallback.value]
+      }
+    }
     sourceView = new EditorView({
       parent: sourceHost,
       state: EditorState.create({
@@ -442,6 +506,9 @@
       highlightRegistry,
       focusWidget
     )
+    isMounted = true
+    persistSelection()
+    if (sourceText) applySource(sourceText)
   })
 
   // Tear down the editor view on destroy.
