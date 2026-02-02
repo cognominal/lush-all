@@ -31,6 +31,8 @@ export type YamlTokenType =
   | 'flow-collection'
   | 'document'
 
+export const YAML_TOKEN_TYPES: readonly YamlTokenType[]
+
 export const SPACE_TYPE: 'Space'
 export const NAKED_STRING_TYPE: 'NakedString'
 
@@ -41,7 +43,24 @@ export type JsTokenType =
   | 'operator'
   | 'punctuation'
   | 'number'
-export type TokenTypeName = YamlTokenType | SyntheticTokenType | JsTokenType
+
+export const JS_TOKEN_TYPES: readonly JsTokenType[]
+
+export type BuiltinTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
+export type BuiltinTokenType = YamlTokenType | SyntheticTokenType | JsTokenType
+
+export interface TokenKindMap extends Record<BuiltinTokenKind, true> {}
+export interface TokenTypeMap extends Record<BuiltinTokenType, true> {}
+
+export type TokenKindName = keyof TokenKindMap
+export type TokenTypeName = keyof TokenTypeMap
+export type TokenKindTypeName = `${TokenKindName}.${TokenTypeName}`
+
+export function registerTokenType(name: TokenKindTypeName): TokenKindTypeName
+export function hasTokenKind(name: TokenKindName): boolean
+export function hasTokenType(name: TokenTypeName): boolean
+export function hasTokenKindType(name: TokenKindTypeName): boolean
+export function registerYamlTokenTypes(): void
 
 export type CompletionTokenKind =
   | 'Folder'
@@ -80,7 +99,7 @@ type TypeScriptSymbolCompletionMetadata =
     modulePath?: string
   }
 
-export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
+export type LushTokenKind = TokenKindName
 
 export type CompletionTokenMetadata =
   | FolderCompletionMetadata
@@ -116,6 +135,18 @@ export function susySvelteProjection(
   source: string,
   filename?: string
 ): SusyNode
+
+export function susyJsProjection(
+  source: string,
+  filename?: string
+): SusyNode
+
+export function susyTsProjection(
+  source: string,
+  filename?: string
+): SusyNode
+
+export function susyYamlProjection(source: string): SusyNode
 
 export function susyText(token: SusyNode | undefined): string
 export function tokenizeSusyLine(text: string): SusyLine

@@ -19,7 +19,12 @@
     type SusyNode,
     type StructuralEditorState
   } from '@lush/structural'
-  import { susySvelteProjection } from 'lush-types'
+  import {
+    susyJsProjection,
+    susySvelteProjection,
+    susyTsProjection,
+    susyYamlProjection
+  } from 'lush-types'
   import highlightRaw from '@lush/structural/highlight.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import {
@@ -36,6 +41,56 @@
     syncView,
     type BreadcrumbItem
   } from '$lib/logic/structuralEditor'
+
+  type SourceLanguage = 'svelte' | 'js' | 'ts' | 'yaml'
+
+  const LANGUAGE_LABELS: Record<SourceLanguage, string> = {
+    svelte: 'Svelte',
+    js: 'JavaScript',
+    ts: 'TypeScript',
+    yaml: 'YAML'
+  }
+
+  const DEFAULT_SAMPLE_OPTION = ''
+
+  type SampleOption = {
+    label: string
+    value: string
+    language: SourceLanguage
+  }
+
+  const sampleContent = import.meta.glob<string>('../samples/*.{svelte,js,ts,yaml}', {
+    eager: true,
+    query: '?raw',
+    import: 'default'
+  })
+
+  // Map file extensions to the source language.
+  function getSampleLanguage(path: string): SourceLanguage {
+    if (path.endsWith('.ts')) return 'ts'
+    if (path.endsWith('.js')) return 'js'
+    if (path.endsWith('.yaml')) return 'yaml'
+    return 'svelte'
+  }
+
+  // Format a file path into a readable label.
+  function formatSampleLabel(path: string): string {
+    const name = path.split('/').pop() ?? path
+    return `Sample: ${name.replace(/\.[^.]+$/, '')}`
+  }
+
+  // Build sample options from the discovered file list.
+  function buildSampleOptions(): SampleOption[] {
+    return Object.keys(sampleContent)
+      .sort((a, b) => a.localeCompare(b))
+      .map((path) => ({
+        label: formatSampleLabel(path),
+        value: path,
+        language: getSampleLanguage(path)
+      }))
+  }
+
+  const SAMPLE_OPTIONS = buildSampleOptions()
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -87,6 +142,18 @@
   let editorState = $state<StructuralEditorState>(initial.state)
   let sourceError = $state<string | null>(null)
   let sourceText = $state(initial.state.projectionText)
+  let sourceLanguage = $state<SourceLanguage>('svelte')
+  let selectedSample = $state(DEFAULT_SAMPLE_OPTION)
+
+  const filteredSamples = $derived(
+    SAMPLE_OPTIONS.filter((option) => option.language === sourceLanguage)
+  )
+
+  $effect(() => {
+    if (!selectedSample) return
+    if (filteredSamples.some((option) => option.value === selectedSample)) return
+    selectedSample = DEFAULT_SAMPLE_OPTION
+  })
 
   // Emit updates whenever the root node changes.
   $effect(() => {
@@ -106,10 +173,17 @@
     )
   }
 
-  // Parse Svelte source and sync the structural editor tree.
-  function applySvelteSource(source: string) {
+  // Parse source and sync the structural editor tree.
+  function applySource(source: string) {
     try {
-      const nextRoot = susySvelteProjection(source)
+      const nextRoot =
+        sourceLanguage === 'svelte'
+          ? susySvelteProjection(source)
+          : sourceLanguage === 'ts'
+            ? susyTsProjection(source)
+            : sourceLanguage === 'yaml'
+              ? susyYamlProjection(source)
+              : susyJsProjection(source)
       const baseState: StructuralEditorState = {
         ...editorState,
         mode: 'normal',
@@ -126,8 +200,71 @@
         currentTokPath: tokPaths[0] ?? []
       })
     } catch (error) {
-      sourceError = error instanceof Error ? error.message : 'Invalid Svelte source.'
+      sourceError =
+        error instanceof Error
+          ? error.message
+          : `Invalid ${LANGUAGE_LABELS[sourceLanguage]} source.`
     }
+  }
+
+  // Find the shortest sample for the selected language.
+  function findShortestSample(language: SourceLanguage): SampleOption | null {
+    let best: SampleOption | null = null
+    let bestLength = Number.POSITIVE_INFINITY
+    for (const option of SAMPLE_OPTIONS) {
+      if (option.language !== language) continue
+      const content = sampleContent[option.value] ?? ''
+      if (content.length >= bestLength) continue
+      best = option
+      bestLength = content.length
+    }
+    return best
+  }
+
+  // Update the parser when the language changes.
+  function updateLanguage(nextLanguage: SourceLanguage) {
+    sourceLanguage = nextLanguage
+    sourceError = null
+    const shortestSample = findShortestSample(nextLanguage)
+    if (shortestSample) {
+      selectSample(shortestSample.value)
+      return
+    }
+    selectedSample = DEFAULT_SAMPLE_OPTION
+    sourceText = ''
+    sourceView?.dispatch({
+      changes: { from: 0, to: sourceView.state.doc.length, insert: '' }
+    })
+  }
+
+  // Load a bundled sample file into the editor.
+  function loadSampleFile(path: string) {
+    const sample = sampleContent[path]
+    if (!sample) {
+      sourceText = ''
+      sourceError = 'Failed to load the selected sample.'
+    } else {
+      sourceText = sample
+      sourceError = null
+    }
+    sourceView?.dispatch({
+      changes: { from: 0, to: sourceView.state.doc.length, insert: sourceText }
+    })
+    applySource(sourceText)
+  }
+
+  // Select a sample and sync language state.
+  function selectSample(value: string) {
+    selectedSample = value
+    if (!value) {
+      selectedSample = DEFAULT_SAMPLE_OPTION
+      return
+    }
+    const selection = SAMPLE_OPTIONS.find((option) => option.value === value)
+    if (!selection) return
+    sourceLanguage = selection.language
+    sourceError = null
+    loadSampleFile(selection.value)
   }
 
   // Clamp selection updates to the current token span.
@@ -167,7 +304,7 @@
   const sourceUpdateListener = EditorView.updateListener.of((update) => {
     if (!update.docChanged) return
     sourceText = update.state.doc.toString()
-    applySvelteSource(sourceText)
+    applySource(sourceText)
   })
 
   // Initialize the editor view on mount.
@@ -331,8 +468,41 @@
   </div>
 
   <div class="flex flex-col gap-2">
-    <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
-      Svelte Source
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
+        Source
+      </div>
+      <div class="flex items-center gap-2 text-xs text-surface-300">
+        <label class="text-xs uppercase tracking-[0.25em] text-surface-400">
+          <span class="sr-only">Language</span>
+          <select
+            class="rounded-md border border-surface-700/70 bg-surface-900/70 px-2 py-1 text-xs text-surface-100"
+            onchange={(event) =>
+              updateLanguage((event.currentTarget as HTMLSelectElement).value as SourceLanguage)}
+            value={sourceLanguage}
+          >
+            <option value="svelte">{LANGUAGE_LABELS.svelte}</option>
+            <option value="js">{LANGUAGE_LABELS.js}</option>
+            <option value="ts">{LANGUAGE_LABELS.ts}</option>
+            <option value="yaml">{LANGUAGE_LABELS.yaml}</option>
+          </select>
+        </label>
+        <label class="text-xs uppercase tracking-[0.2em] text-surface-400">
+          <span class="sr-only">Sample</span>
+          <select
+            class="rounded-md border border-surface-700/70 bg-surface-900/70 px-2 py-1 text-xs text-surface-100"
+            onchange={() => selectSample(selectedSample)}
+            bind:value={selectedSample}
+          >
+            <option value={DEFAULT_SAMPLE_OPTION}>
+              Select {LANGUAGE_LABELS[sourceLanguage]} sample…
+            </option>
+            {#each filteredSamples as option}
+              <option value={option.value}>{option.label}</option>
+            {/each}
+          </select>
+        </label>
+      </div>
     </div>
     <div
       class="h-[7rem] min-h-0 rounded-xl border border-surface-700/60 bg-surface-950/70"

@@ -1,47 +1,30 @@
-export type YamlTokenType =
-  | 'byte-order-mark'
-  | 'doc-mode'
-  | 'doc-start'
-  | 'space'
-  | 'comment'
-  | 'newline'
-  | 'directive-line'
-  | 'directive'
-  | 'error'
-  | 'anchor'
-  | 'tag'
-  | 'seq-item-ind'
-  | 'explicit-key-ind'
-  | 'map-value-ind'
-  | 'flow-map-start'
-  | 'flow-map-end'
-  | 'flow-seq-start'
-  | 'flow-seq-end'
-  | 'flow-error-end'
-  | 'comma'
-  | 'block-scalar-header'
-  | 'doc-end'
-  | 'alias'
-  | 'scalar'
-  | 'single-quoted-scalar'
-  | 'double-quoted-scalar'
-  | 'block-scalar'
-  | 'block-map'
-  | 'block-seq'
-  | 'flow-collection'
-  | 'document'
+import { NAKED_STRING_TYPE, SPACE_TYPE } from './token-lists'
+import type { TokenKindName, TokenTypeName } from './token-registry'
+import './yaml-token-types'
 
-export const SPACE_TYPE = 'Space'
-export const NAKED_STRING_TYPE = 'NakedString'
-
-export type SyntheticTokenType = typeof SPACE_TYPE | typeof NAKED_STRING_TYPE
-export type JsTokenType =
-  | 'keyword'
-  | 'variable'
-  | 'operator'
-  | 'punctuation'
-  | 'number'
-export type TokenTypeName = YamlTokenType | SyntheticTokenType | JsTokenType
+export {
+  JS_TOKEN_TYPES,
+  NAKED_STRING_TYPE,
+  SPACE_TYPE,
+  YAML_TOKEN_TYPES
+} from './token-lists'
+export type { JsTokenType, SyntheticTokenType, YamlTokenType } from './token-lists'
+export type {
+  BuiltinTokenKind,
+  BuiltinTokenType,
+  TokenKindMap,
+  TokenKindName,
+  TokenKindTypeName,
+  TokenTypeMap,
+  TokenTypeName
+} from './token-registry'
+export {
+  hasTokenKind,
+  hasTokenKindType,
+  hasTokenType,
+  registerTokenType
+} from './token-registry'
+export { registerYamlTokenTypes } from './yaml-token-types'
 
 export type CompletionTokenKind =
   | 'Folder'
@@ -82,7 +65,7 @@ type TypeScriptSymbolCompletionMetadata =
 
 
 // Distinguish kinds so we can tell YAML tokens apart from future kinds.
-export type LushTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
+export type LushTokenKind = TokenKindName
 
 export type CompletionTokenMetadata =
   | FolderCompletionMetadata
@@ -117,6 +100,9 @@ export interface SusyEd {
 }
 
 export { susySvelteProjection } from './susy-svelte-projection'
+export { susyJsProjection } from './susy-js-projection'
+export { susyTsProjection } from './susy-ts-projection'
+export { susyYamlProjection } from './susy-yaml-projection'
 
 
 // Render a SusyNode subtree into plain text.
