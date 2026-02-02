@@ -33,6 +33,8 @@ export type YamlTokenType =
 
 export const YAML_TOKEN_TYPES: readonly YamlTokenType[]
 
+export const YAML_AST_TYPES: readonly YamlAstType[]
+
 export const SPACE_TYPE: 'Space'
 export const NAKED_STRING_TYPE: 'NakedString'
 
@@ -46,8 +48,20 @@ export type JsTokenType =
 
 export const JS_TOKEN_TYPES: readonly JsTokenType[]
 
+export type YamlAstType =
+  | 'Document'
+  | 'YAMLMap'
+  | 'YAMLSeq'
+  | 'Pair'
+  | 'Scalar'
+  | 'Alias'
+
 export type BuiltinTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
-export type BuiltinTokenType = YamlTokenType | SyntheticTokenType | JsTokenType
+export type BuiltinTokenType =
+  | YamlTokenType
+  | YamlAstType
+  | SyntheticTokenType
+  | JsTokenType
 
 export interface TokenKindMap extends Record<BuiltinTokenKind, true> {}
 export interface TokenTypeMap extends Record<BuiltinTokenType, true> {}

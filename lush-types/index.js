@@ -35,6 +35,15 @@ export const YAML_TOKEN_TYPES = [
   'document'
 ]
 
+export const YAML_AST_TYPES = [
+  'Document',
+  'YAMLMap',
+  'YAMLSeq',
+  'Pair',
+  'Scalar',
+  'Alias'
+]
+
 export const JS_TOKEN_TYPES = [
   'keyword',
   'variable',
@@ -130,6 +139,9 @@ export function stringToSusyLines(input) {
 // Register YAML token types using the YAML.* prefix.
 export function registerYamlTokenTypes() {
   for (const tokenType of YAML_TOKEN_TYPES) {
+    registerTokenType(`YAML.${tokenType}`)
+  }
+  for (const tokenType of YAML_AST_TYPES) {
     registerTokenType(`YAML.${tokenType}`)
   }
 }

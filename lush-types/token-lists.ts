@@ -34,6 +34,17 @@ export const YAML_TOKEN_TYPES = [
 
 export type YamlTokenType = (typeof YAML_TOKEN_TYPES)[number]
 
+export const YAML_AST_TYPES = [
+  'Document',
+  'YAMLMap',
+  'YAMLSeq',
+  'Pair',
+  'Scalar',
+  'Alias'
+] as const
+
+export type YamlAstType = (typeof YAML_AST_TYPES)[number]
+
 export const SPACE_TYPE = 'Space'
 export const NAKED_STRING_TYPE = 'NakedString'
 

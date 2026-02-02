@@ -6,9 +6,15 @@ export {
   JS_TOKEN_TYPES,
   NAKED_STRING_TYPE,
   SPACE_TYPE,
+  YAML_AST_TYPES,
   YAML_TOKEN_TYPES
 } from './token-lists'
-export type { JsTokenType, SyntheticTokenType, YamlTokenType } from './token-lists'
+export type {
+  JsTokenType,
+  SyntheticTokenType,
+  YamlAstType,
+  YamlTokenType
+} from './token-lists'
 export type {
   BuiltinTokenKind,
   BuiltinTokenType,

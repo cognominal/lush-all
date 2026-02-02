@@ -1,7 +1,16 @@
-import type { JsTokenType, SyntheticTokenType, YamlTokenType } from './token-lists'
+import type {
+  JsTokenType,
+  SyntheticTokenType,
+  YamlAstType,
+  YamlTokenType
+} from './token-lists'
 
 export type BuiltinTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
-export type BuiltinTokenType = YamlTokenType | SyntheticTokenType | JsTokenType
+export type BuiltinTokenType =
+  | YamlTokenType
+  | YamlAstType
+  | SyntheticTokenType
+  | JsTokenType
 
 export interface TokenKindMap extends Record<BuiltinTokenKind, true> {}
 export interface TokenTypeMap extends Record<BuiltinTokenType, true> {}
