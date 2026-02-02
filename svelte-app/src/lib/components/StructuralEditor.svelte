@@ -3,7 +3,8 @@
   import {
     EditorState,
     StateEffect,
-    StateField
+    StateField,
+    type StateEffectType
   } from '@codemirror/state'
   import {
     Decoration,
@@ -16,6 +17,7 @@
     getNodeByPath,
     isSusyTok,
     parseHighlightYaml,
+    serializePath,
     type SusyNode,
     type StructuralEditorState
   } from '@lush/structural'
@@ -92,6 +94,10 @@
 
   const SAMPLE_OPTIONS = buildSampleOptions()
 
+  const { activePath = null } = $props<{
+    activePath?: number[] | null
+  }>()
+
   let host: HTMLDivElement
   let view: EditorView | null = null
   let sourceHost: HTMLDivElement
@@ -99,7 +105,10 @@
   let tokPaths: number[][] = []
   let lastRoot: SusyNode | null = null
 
-  const dispatch = createEventDispatcher<{ rootChange: SusyNode }>()
+  const dispatch = createEventDispatcher<{
+    rootChange: SusyNode
+    focusPath: number[]
+  }>()
 
   const highlightRegistry = createHighlightRegistry(parseHighlightYaml(highlightRaw))
 
@@ -120,7 +129,8 @@
 
   const focusWidget = new FocusWidget()
 
-  const setDecorations = StateEffect.define<DecorationSet>()
+  const setDecorations: StateEffectType<DecorationSet> =
+    StateEffect.define<DecorationSet>()
   const decorationsField = StateField.define<DecorationSet>({
     // Seed decorations with an empty set.
     create() {
@@ -162,15 +172,21 @@
     dispatch('rootChange', editorState.root)
   })
 
+  // Dispatch focus updates when the current token changes.
+  function dispatchFocusPath(next: StructuralEditorState): void {
+    dispatch('focusPath', next.currentTokPath)
+  }
+
   // Sync state and view changes through shared logic.
-  function applyState(next: StructuralEditorState) {
+  function applyState(next: StructuralEditorState, emitFocus = true) {
     editorState = setStateAndSync(
       next,
       view,
-      setDecorations,
+      setDecorations as unknown as StateEffect<DecorationSet>,
       highlightRegistry,
       focusWidget
     )
+    if (emitFocus) dispatchFocusPath(editorState)
   }
 
   // Parse source and sync the structural editor tree.
@@ -419,7 +435,13 @@
       })
     })
 
-    syncView(view, editorState, setDecorations, highlightRegistry, focusWidget)
+    syncView(
+      view,
+      editorState,
+      setDecorations as unknown as StateEffect<DecorationSet>,
+      highlightRegistry,
+      focusWidget
+    )
   })
 
   // Tear down the editor view on destroy.
@@ -435,6 +457,23 @@
   // Update breadcrumbs when the current path changes.
   $effect(() => {
     crumbs = buildBreadcrumbs(editorState, editorState.currentPath)
+  })
+
+  $effect(() => {
+    if (!activePath) return
+    const currentKey = serializePath(editorState.currentTokPath)
+    const nextKey = serializePath(activePath)
+    if (currentKey === nextKey) return
+    if (!getNodeByPath(editorState.root, activePath)) return
+    applyState(
+      {
+        ...editorState,
+        currentPath: activePath,
+        currentTokPath: activePath,
+        cursorOffset: 0
+      },
+      false
+    )
   })
 
   // Blur the editor when the mode badge is clicked.

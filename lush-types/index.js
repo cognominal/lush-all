@@ -91,6 +91,7 @@ export { susySvelteProjection } from './susy-svelte-projection'
 export { susyJsProjection } from './susy-js-projection'
 export { susyTsProjection } from './susy-ts-projection'
 export { susyYamlProjection } from './susy-yaml-projection'
+export { findSusyYamlPathAtPos, projectSusyYamlView } from './susy-yaml-view'
 
 export function susyText(token) {
   if (!token) return ''

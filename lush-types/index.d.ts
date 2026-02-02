@@ -117,6 +117,7 @@ export interface SusyINode {
   x?: number
   ast?: any
   completion?: CompletionTokenMetadata
+  stemCell?: boolean
 }
 
 export type SusyLeaf = SusyINode & { text: string }
@@ -147,6 +148,28 @@ export function susyTsProjection(
 ): SusyNode
 
 export function susyYamlProjection(source: string): SusyNode
+
+export type Span = {
+  from: number
+  to: number
+  textFrom?: number
+  textTo?: number
+}
+
+export type SusyYamlViewProjection = {
+  text: string
+  spansByPath: Map<string, Span>
+}
+
+export function projectSusyYamlView(
+  root: SusyNode,
+  options?: { indexer?: string; filterKeys?: Iterable<string> }
+): SusyYamlViewProjection
+
+export function findSusyYamlPathAtPos(
+  spansByPath: Map<string, Span>,
+  pos: number
+): number[] | null
 
 export function susyText(token: SusyNode | undefined): string
 export function tokenizeSusyLine(text: string): SusyLine

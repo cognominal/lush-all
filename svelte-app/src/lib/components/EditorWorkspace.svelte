@@ -8,11 +8,16 @@
   let root = $state<SusyNode | null>(null)
   let indexer = $state('')
   let filterKeys = $state(DEFAULT_FILTER_KEYS)
+  let activePath = $state<number[] | null>(null)
 </script>
 
 <div class="flex h-full min-h-0 flex-col gap-6 lg:flex-row">
   <div class="min-h-0 flex-1">
-    <StructuralEditor on:rootChange={(event) => (root = event.detail)} />
+    <StructuralEditor
+      {activePath}
+      on:rootChange={(event) => (root = event.detail)}
+      on:focusPath={(event) => (activePath = event.detail)}
+    />
   </div>
   <div class="min-h-0 flex flex-1 flex-col">
     <div class="flex flex-col gap-3 px-6 pt-6">
@@ -36,7 +41,13 @@
       </label>
     </div>
     <div class="min-h-0 flex-1">
-      <SusyYamlPanel {root} {indexer} filterKeys={filterKeys} />
+      <SusyYamlPanel
+        {root}
+        {indexer}
+        {activePath}
+        filterKeys={filterKeys}
+        on:focusPath={(event) => (activePath = event.detail)}
+      />
     </div>
   </div>
 </div>

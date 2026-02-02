@@ -1,4 +1,4 @@
-import { EditorSelection, type StateEffect } from '@codemirror/state'
+import { EditorSelection, type StateEffectType } from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
@@ -186,7 +186,7 @@ export function buildDecorations(
 export function syncView(
   view: EditorView | null,
   state: StructuralEditorState,
-  setDecorations: StateEffect<DecorationSet>,
+  setDecorations: StateEffectType<DecorationSet>,
   highlightRegistry: HighlightRegistry,
   focusWidget: WidgetType
 ): void {
@@ -206,7 +206,7 @@ export function syncView(
 export function setStateAndSync(
   next: StructuralEditorState,
   view: EditorView | null,
-  setDecorations: StateEffect<DecorationSet>,
+  setDecorations: StateEffectType<DecorationSet>,
   highlightRegistry: HighlightRegistry,
   focusWidget: WidgetType
 ): StructuralEditorState {

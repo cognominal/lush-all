@@ -84,7 +84,7 @@ export interface SusyINode {
   x?: number
   ast?: unknown // ast node, for svelte, that would be an augmented tree
   completion?: CompletionTokenMetadata
-  stemCell?:
+  stemCell?: boolean
 }
 
 export type SusyLeaf = SusyINode & { text: string }
@@ -103,6 +103,12 @@ export { susySvelteProjection } from './susy-svelte-projection'
 export { susyJsProjection } from './susy-js-projection'
 export { susyTsProjection } from './susy-ts-projection'
 export { susyYamlProjection } from './susy-yaml-projection'
+export {
+  findSusyYamlPathAtPos,
+  projectSusyYamlView,
+  type Span,
+  type SusyYamlViewProjection
+} from './susy-yaml-view'
 
 
 // Render a SusyNode subtree into plain text.

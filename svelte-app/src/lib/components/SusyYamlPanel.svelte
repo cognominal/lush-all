@@ -1,98 +1,105 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte'
-  import { EditorState } from '@codemirror/state'
-  import { EditorView } from '@codemirror/view'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
+  import {
+    EditorState,
+    StateEffect,
+    StateField,
+    type Range,
+    type StateEffect as StateEffectValue
+  } from '@codemirror/state'
+  import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
   import { basicSetup } from 'codemirror'
   import { yaml } from '@codemirror/lang-yaml'
   import { oneDark } from '@codemirror/theme-one-dark'
-  import { stringify as yamlStringify } from '@lush/yaml'
-  import type { SusyNode } from 'lush-types'
+  import {
+    findSusyYamlPathAtPos,
+    projectSusyYamlView,
+    type Span,
+    type SusyNode
+  } from 'lush-types'
+  import { serializePath } from '@lush/structural'
 
-  const { root = null, indexer = '', filterKeys = '' } = $props<{
+  const {
+    root = null,
+    indexer = '',
+    filterKeys = '',
+    activePath = null
+  } = $props<{
     root?: SusyNode | null
     indexer?: string
     filterKeys?: string
+    activePath?: number[] | null
   }>()
 
   let host: HTMLDivElement
   let view: EditorView | null = null
+  let spansByPath = $state<Map<string, Span>>(new Map())
+
+  const dispatch = createEventDispatcher<{ focusPath: number[] }>()
 
   const emptyMessage = '# Susy projection will appear here.'
   const emptySelectionMessage = '# Indexer did not match any value.'
 
   let yamlText = $state(emptyMessage)
+  let lastActiveKey = $state<string | null>(null)
 
-  // Check if a value is a plain record.
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-  }
-
-  // Pick a nested value from a dot-separated path.
-  function pickValue(rootValue: unknown, picker: string): unknown {
-    if (!picker.trim()) return rootValue
-    const parts = picker.split('.').filter(Boolean)
-    let current: unknown = rootValue
-    for (const part of parts) {
-      if (current === null || current === undefined) return undefined
-      if (/^\d+$/.test(part)) {
-        if (!Array.isArray(current)) return undefined
-        current = current[Number.parseInt(part, 10)]
-        continue
+  const setDecorations = StateEffect.define<DecorationSet>()
+  const decorationsField = StateField.define<DecorationSet>({
+    // Seed decorations with an empty set.
+    create() {
+      return Decoration.none
+    },
+    // Replace decorations when an effect provides a new set.
+    update(deco, tr) {
+      for (const effect of tr.effects) {
+        if (effect.is(setDecorations)) return effect.value
       }
-      if (!isRecord(current)) return undefined
-      current = current[part]
-    }
-    return current
+      return deco.map(tr.changes)
+    },
+    // Expose the decorations to CodeMirror view.
+    provide: (field) => EditorView.decorations.from(field)
+  })
+
+  // Build highlight decorations for the active token path.
+  function buildHighlightDecorations(): DecorationSet {
+    if (!activePath) return Decoration.none
+    const span = spansByPath.get(serializePath(activePath))
+    if (!span) return Decoration.none
+    const from = span.textFrom ?? span.from
+    const to = span.textTo ?? span.to
+    if (from >= to) return Decoration.none
+    const ranges: Array<Range<Decoration>> = [
+      Decoration.mark({ class: 'cm-susy-yaml-focus' }).range(from, to)
+    ]
+    return Decoration.set(ranges, true)
   }
 
-  // Remove keys from nested arrays/objects.
-  function weedoutKeys(value: unknown, keys: Set<string>): unknown {
-    if (Array.isArray(value)) {
-      return value.map((entry) => weedoutKeys(entry, keys))
-    }
-    if (isRecord(value)) {
-      const result: Record<string, unknown> = {}
-      for (const [key, entry] of Object.entries(value)) {
-        if (keys.has(key)) continue
-        result[key] = weedoutKeys(entry, keys)
-      }
-      return result
-    }
-    return value
-  }
-
-  // Normalize a space-separated list of filter keys.
-  function normalizeFilterKeys(input: string): Set<string> {
-    return new Set(input.split(/\s+/).filter(Boolean))
-  }
-
-  // Replace kind/type pairs with a fused kt key for YAML output.
-  function fuseKindType(value: unknown): unknown {
-    if (Array.isArray(value)) {
-      return value.map((entry) => fuseKindType(entry))
-    }
-    if (isRecord(value)) {
-      const kind = value.kind
-      const type = value.type
-      const hasPair = typeof kind === 'string' && typeof type === 'string'
-      const result: Record<string, unknown> = {}
-      if (hasPair) result.kt = `${kind}.${type}`
-      for (const [key, entry] of Object.entries(value)) {
-        if (hasPair && (key === 'kind' || key === 'type')) continue
-        result[key] = fuseKindType(entry)
-      }
-      return result
-    }
-    return value
-  }
-
+  // Sync CodeMirror document and highlight state.
   function syncView(nextDoc: string) {
     if (!view) return
     const current = view.state.doc.toString()
     if (nextDoc === current) return
     view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: nextDoc }
+      changes: { from: 0, to: view.state.doc.length, insert: nextDoc },
+      effects: [setDecorations.of(buildHighlightDecorations())]
     })
+  }
+
+  // Update highlight decorations after state changes.
+  function syncHighlight(): void {
+    if (!view) return
+    const baseEffect = setDecorations.of(buildHighlightDecorations()) as StateEffectValue<unknown>
+    let effects: Array<StateEffectValue<unknown>> = [baseEffect]
+    if (activePath) {
+      const key = serializePath(activePath)
+      const span = spansByPath.get(key)
+      if (span && key !== lastActiveKey) {
+        const from = span.textFrom ?? span.from
+        effects = [...effects, EditorView.scrollIntoView(from, { y: 'center' })]
+        lastActiveKey = key
+      }
+    }
+    view.dispatch({ effects })
   }
 
   onMount(() => {
@@ -106,6 +113,20 @@
           oneDark,
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
+          decorationsField,
+          EditorView.domEventHandlers({
+            // Sync focus path when YAML is clicked.
+            mousedown: (event) => {
+              if (!view) return false
+              const coords = { x: event.clientX, y: event.clientY }
+              const pos = view.posAtCoords(coords)
+              if (pos == null) return false
+              const path = findSusyYamlPathAtPos(spansByPath, pos)
+              if (!path) return false
+              dispatch('focusPath', path)
+              return false
+            }
+          }),
           EditorView.theme({
             '&': {
               height: '100%',
@@ -118,6 +139,11 @@
             },
             '.cm-scroller': {
               overflow: 'auto'
+            },
+            '.cm-susy-yaml-focus': {
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              outline: '1px solid rgba(56, 189, 248, 0.7)',
+              borderRadius: '3px'
             }
           })
         ]
@@ -128,21 +154,26 @@
   $effect(() => {
     if (!root) {
       yamlText = emptyMessage
+      spansByPath = new Map()
       syncView(yamlText)
       return
     }
 
-    const picked = pickValue(root, indexer)
-    if (picked === undefined) {
+    const filterSet: Set<string> = new Set(filterKeys.split(/\s+/).filter(Boolean))
+    const projection = projectSusyYamlView(root, { indexer, filterKeys: filterSet })
+    if (!projection.text) {
       yamlText = emptySelectionMessage
+      spansByPath = new Map()
       syncView(yamlText)
       return
     }
-
-    const filtered = weedoutKeys(picked, normalizeFilterKeys(filterKeys))
-    const fused = fuseKindType(filtered)
-    yamlText = yamlStringify(fused).trimEnd()
+    yamlText = projection.text
+    spansByPath = projection.spansByPath
     syncView(yamlText)
+  })
+
+  $effect(() => {
+    syncHighlight()
   })
 
   onDestroy(() => {
