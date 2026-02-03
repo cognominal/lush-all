@@ -17,7 +17,7 @@ import type {
 import type * as CST from './parse/cst.ts'
 import { LineCounter } from './parse/line-counter.ts'
 import { Parser } from './parse/parser.ts'
-import type { SusyNode, SusyLines } from 'lush-types'
+import type { SusyNode, SusyLines } from '../../lush-types/index.ts'
 
 export interface EmptyStream
   extends Array<Document.Parsed>,

@@ -1,9 +1,8 @@
-import { EditorSelection, type StateEffectType } from '@codemirror/state'
+import { EditorSelection, type Range, type StateEffectType } from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
   type EditorView,
-  type Range,
   type WidgetType
 } from '@codemirror/view'
 import {
@@ -482,10 +481,7 @@ function formatEventKey(event: KeyboardEvent): string {
 }
 
 // Resolve the most specific event map for a node path.
-function resolveNodeKeyMap(
-  handlers: NodeKeyMap,
-  state: StructuralEditorState
-): EventKeyMap | null {
+function resolveNodeKeyMap(handlers: NodeKeyMap, state: StructuralEditorState): EventKeyMap | null {
   const basePath = state.currentTokPath.length ? state.currentTokPath : state.currentPath
   const trail = buildPathTrail(basePath)
   for (const path of trail) {
@@ -499,6 +495,30 @@ function resolveNodeKeyMap(
     if (generalHandlers) return generalHandlers
   }
   return null
+}
+
+// Merge two event maps, preferring overrides when keys collide.
+function mergeEventKeyMaps(base: EventKeyMap, overrides?: EventKeyMap): EventKeyMap {
+  const merged = new Map(base)
+  overrides?.forEach((handler, key) => {
+    merged.set(key, handler)
+  })
+  return merged
+}
+
+// Resolve a handler map from shared and mode-specific maps.
+function resolveCombinedKeyMap(
+  sharedHandlers: NodeKeyMap,
+  modeHandlers: NodeKeyMap,
+  state: StructuralEditorState,
+  fallbackHandlers: EventKeyMap
+): EventKeyMap {
+  const shared = resolveNodeKeyMap(sharedHandlers, state)
+  const specific = resolveNodeKeyMap(modeHandlers, state)
+  if (shared && specific) return mergeEventKeyMaps(mergeEventKeyMaps(fallbackHandlers, shared), specific)
+  if (specific) return mergeEventKeyMaps(fallbackHandlers, specific)
+  if (shared) return mergeEventKeyMaps(fallbackHandlers, shared)
+  return fallbackHandlers
 }
 
 // Handle key events in normal mode.
@@ -542,6 +562,126 @@ function handleInsertKey(
   }
   return { handled: true, state, tokPaths }
 }
+
+// Return the caret position for the current mode.
+function getCaretPosition(state: StructuralEditorState): number {
+  if (state.mode === 'insert') {
+    const span = getSpan(state, state.currentTokPath)
+    const range = getTextRange(span)
+    return clamp(range.from + state.cursorOffset, range.from, range.to)
+  }
+  const span = getSpan(state, state.currentPath)
+  if (!span) return 0
+  return span.textFrom ?? span.from
+}
+
+// Compute line starts for the current projection text.
+function computeLineStarts(text: string): number[] {
+  const starts = [0]
+  for (let idx = 0; idx < text.length; idx += 1) {
+    if (text[idx] === '\n') starts.push(idx + 1)
+  }
+  return starts
+}
+
+// Find the line index for a position.
+function findLineIndex(lineStarts: number[], pos: number): number {
+  for (let idx = 0; idx < lineStarts.length; idx += 1) {
+    const start = lineStarts[idx]
+    const end = idx + 1 < lineStarts.length ? lineStarts[idx + 1] - 1 : Number.MAX_SAFE_INTEGER
+    if (pos >= start && pos <= end) return idx
+  }
+  return lineStarts.length - 1
+}
+
+// Clamp a caret to the nearest valid position.
+function clampCaretPosition(state: StructuralEditorState, pos: number): number {
+  return clamp(pos, 0, state.projectionText.length)
+}
+
+// Move the caret and update state paths/cursor.
+function moveCaretTo(
+  state: StructuralEditorState,
+  tokPaths: number[][],
+  pos: number
+): KeyHandlerResult {
+  const clampedPos = clampCaretPosition(state, pos)
+  const path = findPathAtPos(state, clampedPos)
+  if (!path) return { handled: true, state, tokPaths }
+  const node = getNodeByPath(state.root, path)
+  if (!node) return { handled: true, state, tokPaths }
+  const inputPath = isSusyTok(node) ? path : resolveInsertTarget(state.root, path).path
+  const span = getSpan(state, inputPath)
+  const range = getTextRange(span)
+  const nextOffset = clamp(clampedPos - range.from, 0, range.to - range.from)
+  return {
+    handled: true,
+    state: {
+      ...state,
+      currentPath: path,
+      currentTokPath: inputPath,
+      cursorOffset: nextOffset
+    },
+    tokPaths
+  }
+}
+
+// Handle arrow key navigation in both modes.
+function handleArrowKey(
+  event: KeyboardEvent,
+  state: StructuralEditorState,
+  tokPaths: number[][]
+): KeyHandlerResult {
+  const caret = getCaretPosition(state)
+  const lineStarts = computeLineStarts(state.projectionText)
+  const lineIndex = findLineIndex(lineStarts, caret)
+  const lineStart = lineStarts[lineIndex] ?? 0
+  const nextLineStart = lineStarts[lineIndex + 1] ?? state.projectionText.length + 1
+  const lineEnd = nextLineStart - 1
+  const column = caret - lineStart
+
+  if (event.key === 'ArrowLeft') {
+    return moveCaretTo(state, tokPaths, caret - 1)
+  }
+  if (event.key === 'ArrowRight') {
+    return moveCaretTo(state, tokPaths, caret + 1)
+  }
+  if (event.key === 'ArrowUp') {
+    const prevLineStart = lineStarts[lineIndex - 1]
+    if (prevLineStart == null) return { handled: true, state, tokPaths }
+    const prevLineEnd = lineStart - 1
+    const target = Math.min(prevLineStart + column, prevLineEnd)
+    return moveCaretTo(state, tokPaths, target)
+  }
+  if (event.key === 'ArrowDown') {
+    if (lineIndex + 1 >= lineStarts.length) return { handled: true, state, tokPaths }
+    const nextLineEnd =
+      lineIndex + 2 < lineStarts.length
+        ? (lineStarts[lineIndex + 2] ?? state.projectionText.length) - 1
+        : state.projectionText.length
+    const target = Math.min(nextLineStart + column, nextLineEnd)
+    return moveCaretTo(state, tokPaths, target)
+  }
+  return { handled: true, state, tokPaths }
+}
+
+const sharedEventKeyHandlers: EventKeyMap = new Map([
+  ['ArrowLeft', handleArrowKey],
+  ['ArrowRight', handleArrowKey],
+  ['ArrowUp', handleArrowKey],
+  ['ArrowDown', handleArrowKey]
+])
+
+const sharedNodeKeyHandlers: NodeKeyMap = new Map([
+  [
+    '.document',
+    new Map(sharedEventKeyHandlers)
+  ],
+  [
+    '.block-seq',
+    new Map(sharedEventKeyHandlers)
+  ]
+])
 
 const normalNodeKeyHandlers: NodeKeyMap = new Map([
   [
@@ -599,14 +739,24 @@ export function handleKey(
   tokPaths: number[][]
 ): KeyHandlerResult {
   if (state.mode === 'normal') {
-    const handlerMap = resolveNodeKeyMap(nodeKeyMapsByMode.normal, state)
+    const handlerMap = resolveCombinedKeyMap(
+      sharedNodeKeyHandlers,
+      nodeKeyMapsByMode.normal,
+      state,
+      sharedEventKeyHandlers
+    )
     const eventKey = formatEventKey(event)
     const handler = handlerMap?.get(eventKey)
     return handler ? handler(event, state, tokPaths) : handleNormalKey(event, state, tokPaths)
   }
 
   if (state.mode === 'insert') {
-    const handlerMap = resolveNodeKeyMap(nodeKeyMapsByMode.insert, state)
+    const handlerMap = resolveCombinedKeyMap(
+      sharedNodeKeyHandlers,
+      nodeKeyMapsByMode.insert,
+      state,
+      sharedEventKeyHandlers
+    )
     const eventKey = formatEventKey(event)
     const handler =
       handlerMap?.get(eventKey) ?? (isPrintable(event) ? handlerMap?.get('Printable') : undefined)

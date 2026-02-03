@@ -8,7 +8,22 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [sveltekit()],
   build: {
-    chunkSizeWarningLimit: 700
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Split large dependencies to keep chunks under the warning limit.
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('codemirror') || id.includes('@codemirror')) return 'codemirror'
+            if (id.includes('/yaml/')) return 'yaml'
+            if (id.includes('svelte')) return 'svelte'
+            return 'vendor'
+          }
+          if (id.includes('/lush-types/')) return 'lush-types'
+          return undefined
+        }
+      }
+    }
   },
   resolve: {
     alias: {

@@ -200,7 +200,7 @@
     editorState = setStateAndSync(
       next,
       view,
-      setDecorations as unknown as StateEffect<DecorationSet>,
+      setDecorations,
       highlightRegistry,
       focusWidget
     )
@@ -502,7 +502,7 @@
     syncView(
       view,
       editorState,
-      setDecorations as unknown as StateEffect<DecorationSet>,
+      setDecorations,
       highlightRegistry,
       focusWidget
     )

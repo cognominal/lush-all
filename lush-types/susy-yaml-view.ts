@@ -35,7 +35,7 @@ function normalizeFilterKeys(input?: Iterable<string>): Set<string> {
 
 // Check whether a value is a Susy node.
 function isSusyNode(value: unknown): value is SusyNode {
-  return Boolean(value) && typeof value === 'object' && 'kind' in value && 'type' in value
+  return value !== null && typeof value === 'object' && 'kind' in value && 'type' in value
 }
 
 // Resolve an indexer into a Susy node and its base path.
@@ -52,7 +52,7 @@ function resolveSusyPath(
     if (part === 'kids') continue
     if (!/^(0|[1-9]\d*)$/.test(part)) return null
     const idx = Number.parseInt(part, 10)
-    const next = current.kids?.[idx]
+    const next: SusyNode | undefined = current.kids?.[idx]
     if (!next) return null
     path.push(idx)
     current = next

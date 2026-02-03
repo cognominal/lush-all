@@ -5,7 +5,7 @@ import type {
   YamlTokenType
 } from './token-lists'
 
-export type BuiltinTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
+export type BuiltinTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte' | 'ts'
 export type BuiltinTokenType =
   | YamlTokenType
   | YamlAstType

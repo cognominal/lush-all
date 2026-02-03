@@ -1,12 +1,5 @@
 import { parse } from "svelte/compiler";
-import YAML from "yaml";
 import type { LushTokenKind, SusyNode, TokenTypeName } from "lush-types";
-
-declare global {
-  interface ImportMeta {
-    main?: boolean;
-  }
-}
 
 type AstNode = {
   type: string;
@@ -147,16 +140,3 @@ export const susySvelteProjection = (
   assignTokenIdx(root, { value: 0 });
   return root;
 };
-
-// called if that file is executed stand alone
-if (import.meta.main) {
-  // Run CLI mode when invoked directly.
-  void (async () => {
-    const { readFileSync } = await import("node:fs");
-    const { resolve } = await import("node:path");
-    const filePath = process.argv[2] ?? "lk.svelte";
-    const source = readFileSync(filePath, "utf8");
-    const root = susySvelteProjection(source, resolve(filePath));
-    process.stdout.write(`${YAML.stringify(root)}`);
-  })();
-}

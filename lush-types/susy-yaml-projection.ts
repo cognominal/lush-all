@@ -79,6 +79,23 @@ function toRangeSlice(range?: Range | null): RangeSlice | null {
   return { start, end }
 }
 
+// Narrow unknown values to YAML AST nodes.
+function isYamlAstNode(value: unknown): value is YamlAstNode {
+  return (
+    isDocument(value) ||
+    isMap(value) ||
+    isSeq(value) ||
+    isPair(value) ||
+    isScalar(value) ||
+    isAlias(value)
+  )
+}
+
+// Normalize child lists into YAML AST nodes.
+function filterYamlAstNodes(items: unknown[]): YamlAstNode[] {
+  return items.filter(isYamlAstNode)
+}
+
 // Create a range from child nodes.
 function rangeFromChildren(children: YamlAstNode[]): RangeSlice | null {
   let start = Number.POSITIVE_INFINITY
@@ -125,8 +142,8 @@ function getYamlAstType(node: YamlAstNode): YamlAstType {
 // Resolve children for a YAML node.
 function mapChildren(node: YamlAstNode): YamlAstNode[] {
   if (isDocument(node)) return node.contents ? [node.contents] : []
-  if (isMap(node)) return node.items
-  if (isSeq(node)) return node.items
+  if (isMap(node)) return filterYamlAstNodes(node.items)
+  if (isSeq(node)) return filterYamlAstNodes(node.items)
   if (isPair(node)) return pairChildren(node)
   return []
 }
