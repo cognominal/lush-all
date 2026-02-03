@@ -1,0 +1,48 @@
+# 1. Basic Key-Value Pairs
+project: "Gemini Workspace"
+status: active
+version: 1.2
+
+# 2. Nested Objects (Mappings)
+metadata:
+  created_at: 2026-02-03
+  tags: [ai, productivity, yaml] # Flow style (JSON-like)
+
+# 3. Lists (Sequences)
+features:
+  - Text Generation
+  - Image Creation
+  - Video Generation
+
+# 4. Multi-line Strings
+description: |
+  The pipe symbol keeps newlines.
+  This is great for scripts or 
+  long documentation blocks.
+
+summary: >
+  The greater-than symbol "folds" 
+  newlines into spaces, making this
+  one long paragraph for the parser.
+
+# 5. Reusable Content (Anchors & Aliases)
+# Use '&' to define a block and '*' to reference it later
+default_settings: &base_config
+  timeout: 30
+  retry: true
+  cache: enabled
+
+api_service:
+  <<: *base_config    # The '<<' merges the anchored block here
+  endpoint: "/api/v1"
+
+# 6. Explicit Data Types (Tags)
+not_a_number: !!str 12345
+is_float: !!float 10
+binary_data: !!binary |
+  R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7
+
+# 7. Nulls and Booleans
+empty_val: null
+enabled: true
+disabled: false
