@@ -38,6 +38,17 @@ export type KeyHandlerResult = {
   tokPaths: number[][]
 }
 
+type NodeKeyHandler = (
+  event: KeyboardEvent,
+  state: StructuralEditorState,
+  tokPaths: number[][]
+) => KeyHandlerResult
+
+type EventKeyMap = Map<string, NodeKeyHandler>
+type NodeKeyMap = Map<string, EventKeyMap>
+
+type EditorMode = StructuralEditorState['mode']
+
 // Build the initial structural editor state from a sample JS tree.
 export function createInitialState(): ProjectionSnapshot {
   const root = createSampleJsTree()
@@ -274,6 +285,75 @@ export function updateTokenText(
   return { ...root, kids: nextChildren }
 }
 
+// Compare two node paths for equality.
+function isSamePath(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false
+  for (let idx = 0; idx < a.length; idx += 1) {
+    if (a[idx] !== b[idx]) return false
+  }
+  return true
+}
+
+// Update node ranges when inserting text in a leaf token.
+function updateTreeForInsert(
+  root: SusyNode,
+  path: number[],
+  offset: number,
+  insertText: string
+): SusyNode {
+  const target = getNodeByPath(root, path)
+  if (!target) return root
+  const insertPos =
+    typeof target.x === 'number' ? target.x + clamp(offset, 0, target.text?.length ?? 0) : null
+
+  const visit = (node: SusyNode, currentPath: number[]): SusyNode => {
+    let nextNode = node
+    let nextKids: SusyNode[] | undefined
+
+    if (node.kids && node.kids.length > 0) {
+      let kidsChanged = false
+      nextKids = node.kids.map((child, idx) => {
+        const nextChild = visit(child, [...currentPath, idx])
+        if (nextChild !== child) kidsChanged = true
+        return nextChild
+      })
+      if (kidsChanged) nextNode = { ...nextNode, kids: nextKids }
+    }
+
+    const isTarget = isSamePath(currentPath, path)
+    let nextText = nextNode.text
+    let nextX = nextNode.x
+
+    if (isTarget && typeof nextText === 'string') {
+      const safeOffset = clamp(offset, 0, nextText.length)
+      nextText = nextText.slice(0, safeOffset) + insertText + nextText.slice(safeOffset)
+    }
+
+    if (insertPos != null && typeof nextX === 'number') {
+      if (!isTarget && typeof nextText === 'string') {
+        const start = nextX
+        const end = nextX + nextText.length
+        if (insertPos >= start && insertPos <= end) {
+          const localOffset = clamp(insertPos - start, 0, nextText.length)
+          nextText = nextText.slice(0, localOffset) + insertText + nextText.slice(localOffset)
+        } else if (insertPos < start) {
+          nextX = start + insertText.length
+        }
+      } else if (!isTarget && insertPos < nextX) {
+        nextX = nextX + insertText.length
+      }
+    }
+
+    if (nextText !== nextNode.text || nextX !== nextNode.x) {
+      nextNode = { ...nextNode, text: nextText, x: nextX }
+    }
+
+    return nextNode
+  }
+
+  return visit(root, [])
+}
+
 // Resolve the current token text from a path for insert-mode editing.
 export function resolveInsertTarget(
   root: SusyNode,
@@ -362,8 +442,7 @@ export function insertChar(
   if (!token) return { state, tokPaths }
   const text = token.text ?? ''
   const offset = clamp(state.cursorOffset, 0, text.length)
-  const nextText = text.slice(0, offset) + char + text.slice(offset)
-  const nextRoot = updateTokenText(state.root, path, nextText)
+  const nextRoot = updateTreeForInsert(state.root, path, offset, char)
   const baseState: StructuralEditorState = {
     ...state,
     mode: 'insert',
@@ -382,6 +461,137 @@ export function isPrintable(event: KeyboardEvent): boolean {
   return true
 }
 
+// Build a leaf-first list of paths for key resolution.
+function buildPathTrail(path: number[]): number[][] {
+  const trail: number[][] = []
+  for (let idx = path.length; idx >= 0; idx -= 1) {
+    trail.push(path.slice(0, idx))
+  }
+  return trail
+}
+
+// Normalize a key event to a stable event key string.
+function formatEventKey(event: KeyboardEvent): string {
+  const parts: string[] = []
+  if (event.metaKey) parts.push('Meta')
+  if (event.ctrlKey) parts.push('Control')
+  if (event.altKey) parts.push('Alt')
+  if (event.shiftKey) parts.push('Shift')
+  parts.push(event.key)
+  return parts.join('+')
+}
+
+// Resolve the most specific event map for a node path.
+function resolveNodeKeyMap(
+  handlers: NodeKeyMap,
+  state: StructuralEditorState
+): EventKeyMap | null {
+  const basePath = state.currentTokPath.length ? state.currentTokPath : state.currentPath
+  const trail = buildPathTrail(basePath)
+  for (const path of trail) {
+    const node = getNodeByPath(state.root, path)
+    if (!node) continue
+    const specificKey = `${node.kind}.${node.type}`
+    const generalKey = `.${node.type}`
+    const specificHandlers = handlers.get(specificKey)
+    if (specificHandlers) return specificHandlers
+    const generalHandlers = handlers.get(generalKey)
+    if (generalHandlers) return generalHandlers
+  }
+  return null
+}
+
+// Handle key events in normal mode.
+function handleNormalKey(
+  event: KeyboardEvent,
+  state: StructuralEditorState,
+  tokPaths: number[][]
+): KeyHandlerResult {
+  if (event.key === 'i' && !event.shiftKey) {
+    return { handled: true, state: enterInsertMode(state), tokPaths }
+  }
+  if (event.key === 'Enter' && event.shiftKey) {
+    return { handled: true, state: descend(state), tokPaths }
+  }
+  if (event.key === 'Enter') {
+    return { handled: true, state: descend(state), tokPaths }
+  }
+  if (event.key === 'Tab') {
+    const nextState = event.shiftKey
+      ? moveToPrevInput(state, tokPaths)
+      : moveToNextInput(state, tokPaths)
+    return { handled: true, state: nextState, tokPaths }
+  }
+  if (event.key === 'Escape') return { handled: true, state, tokPaths }
+  return { handled: true, state, tokPaths }
+}
+
+// Handle key events in insert mode.
+function handleInsertKey(
+  event: KeyboardEvent,
+  state: StructuralEditorState,
+  tokPaths: number[][]
+): KeyHandlerResult {
+  if (event.key === 'Escape') {
+    return { handled: true, state: enterNormalMode(state), tokPaths }
+  }
+  if (event.key === 'Enter') return { handled: true, state, tokPaths }
+  if (isPrintable(event)) {
+    const updated = insertChar(state, tokPaths, event.key)
+    return { handled: true, state: updated.state, tokPaths: updated.tokPaths }
+  }
+  return { handled: true, state, tokPaths }
+}
+
+const normalNodeKeyHandlers: NodeKeyMap = new Map([
+  [
+    '.document',
+    new Map([
+      ['i', handleNormalKey],
+      ['Enter', handleNormalKey],
+      ['Shift+Enter', handleNormalKey],
+      ['Tab', handleNormalKey],
+      ['Shift+Tab', handleNormalKey],
+      ['Escape', handleNormalKey]
+    ])
+  ],
+  [
+    '.block-seq',
+    new Map([
+      ['i', handleNormalKey],
+      ['Enter', handleNormalKey],
+      ['Shift+Enter', handleNormalKey],
+      ['Tab', handleNormalKey],
+      ['Shift+Tab', handleNormalKey],
+      ['Escape', handleNormalKey]
+    ])
+  ]
+])
+
+const insertNodeKeyHandlers: NodeKeyMap = new Map([
+  [
+    '.document',
+    new Map([
+      ['Escape', handleInsertKey],
+      ['Enter', handleInsertKey],
+      ['Printable', handleInsertKey]
+    ])
+  ],
+  [
+    '.block-seq',
+    new Map([
+      ['Escape', handleInsertKey],
+      ['Enter', handleInsertKey],
+      ['Printable', handleInsertKey]
+    ])
+  ]
+])
+
+const nodeKeyMapsByMode: Record<EditorMode, NodeKeyMap> = {
+  normal: normalNodeKeyHandlers,
+  insert: insertNodeKeyHandlers
+}
+
 // Handle key events and return updated state plus whether it was handled.
 export function handleKey(
   event: KeyboardEvent,
@@ -389,35 +599,18 @@ export function handleKey(
   tokPaths: number[][]
 ): KeyHandlerResult {
   if (state.mode === 'normal') {
-    if (event.key === 'i' && !event.shiftKey) {
-      return { handled: true, state: enterInsertMode(state), tokPaths }
-    }
-    if (event.key === 'Enter' && event.shiftKey) {
-      return { handled: true, state: descend(state), tokPaths }
-    }
-    if (event.key === 'Enter') {
-      return { handled: true, state: descend(state), tokPaths }
-    }
-    if (event.key === 'Tab') {
-      const nextState = event.shiftKey
-        ? moveToPrevInput(state, tokPaths)
-        : moveToNextInput(state, tokPaths)
-      return { handled: true, state: nextState, tokPaths }
-    }
-    if (event.key === 'Escape') return { handled: true, state, tokPaths }
-    return { handled: true, state, tokPaths }
+    const handlerMap = resolveNodeKeyMap(nodeKeyMapsByMode.normal, state)
+    const eventKey = formatEventKey(event)
+    const handler = handlerMap?.get(eventKey)
+    return handler ? handler(event, state, tokPaths) : handleNormalKey(event, state, tokPaths)
   }
 
   if (state.mode === 'insert') {
-    if (event.key === 'Escape') {
-      return { handled: true, state: enterNormalMode(state), tokPaths }
-    }
-    if (event.key === 'Enter') return { handled: true, state, tokPaths }
-    if (isPrintable(event)) {
-      const updated = insertChar(state, tokPaths, event.key)
-      return { handled: true, state: updated.state, tokPaths: updated.tokPaths }
-    }
-    return { handled: true, state, tokPaths }
+    const handlerMap = resolveNodeKeyMap(nodeKeyMapsByMode.insert, state)
+    const eventKey = formatEventKey(event)
+    const handler =
+      handlerMap?.get(eventKey) ?? (isPrintable(event) ? handlerMap?.get('Printable') : undefined)
+    return handler ? handler(event, state, tokPaths) : handleInsertKey(event, state, tokPaths)
   }
 
   return { handled: false, state, tokPaths }
