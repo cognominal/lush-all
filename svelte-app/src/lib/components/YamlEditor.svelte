@@ -15,16 +15,24 @@
   import { keymap } from '@codemirror/view'
   import { onDidChangeConfiguration, workspace } from '$lib/config/workspaceConfiguration'
 
-  export let value: string
-  export let highlightRange: { from: number; to: number } | null = null
-  export let foldToggleRequest:
-    | { range: { from: number; to: number } | null; id: number }
-    | null = null
-
-  export let onChange: ((value: string) => void) | undefined = undefined
-  export let onCursor: ((offset: number) => void) | undefined = undefined
-  export let onReturn: ((docText: string, cursorOffset: number) => { from: number; to: number; insert: string; selectionOffset: number } | null) | undefined =
-    undefined
+  const {
+    value,
+    highlightRange = null,
+    foldToggleRequest = null,
+    onChange = undefined,
+    onCursor = undefined,
+    onReturn = undefined
+  } = $props<{
+    value: string
+    highlightRange?: { from: number; to: number } | null
+    foldToggleRequest?: { range: { from: number; to: number } | null; id: number } | null
+    onChange?: (value: string) => void
+    onCursor?: (offset: number) => void
+    onReturn?: (
+      docText: string,
+      cursorOffset: number
+    ) => { from: number; to: number; insert: string; selectionOffset: number } | null
+  }>()
 
   let host: HTMLDivElement
   let view: EditorView | null = null
