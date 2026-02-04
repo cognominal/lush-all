@@ -33,6 +33,7 @@
     buildBreadcrumbs,
     clamp,
     createInitialState,
+    findClosestPathAtPos,
     findPathAtPos,
     getSpan,
     getTextRange,
@@ -168,6 +169,42 @@
     target.__structuralEditorTokPaths = nextTokPaths
   }
 
+  // Expose the CodeMirror view for devtools automation.
+  function updateDebugView(nextView: EditorView | null) {
+    if (!import.meta.env.DEV) return
+    const target = window as Window & { __structuralEditorView?: EditorView | null }
+    target.__structuralEditorView = nextView
+  }
+
+  // Expose debug helpers for driving key handling in tests.
+  function updateDebugControls(nextView: EditorView | null) {
+    if (!import.meta.env.DEV) return
+    const target = window as Window & {
+      __structuralEditorDebug?: {
+        handleKey: (key: string) => void
+        setCaret: (pos: number) => void
+        getCaret: () => number
+        getDoc: () => string
+      }
+    }
+    target.__structuralEditorDebug = {
+      handleKey: (key: string) => {
+        const event = new KeyboardEvent('keydown', { key })
+        const result = handleKey(event, editorState, tokPaths)
+        if (result.handled) {
+          tokPaths = result.tokPaths
+          applyState(result.state)
+        }
+      },
+      setCaret: (pos: number) => {
+        if (!nextView) return
+        nextView.dispatch({ selection: { anchor: pos } })
+      },
+      getCaret: () => nextView?.state.selection.main.head ?? 0,
+      getDoc: () => nextView?.state.doc.toString() ?? ''
+    }
+  }
+
   const filteredSamples = $derived(
     SAMPLE_OPTIONS.filter((option) => option.language === sourceLanguage)
   )
@@ -190,6 +227,7 @@
 
   $effect(() => {
     updateDebugState(editorState, tokPaths)
+    updateDebugControls(view)
   })
 
   $effect(() => {
@@ -352,26 +390,8 @@
     if (!view) return
     if (!update.selectionSet) return
 
-    if (editorState.mode === 'insert') {
-      const span = getSpan(editorState, editorState.currentTokPath)
-      if (!span) return
-      const range = getTextRange(span)
-      const head = update.state.selection.main.head
-      const clamped = clamp(head, range.from, range.to)
-
-      if (clamped !== head) {
-        view.dispatch({ selection: { anchor: clamped } })
-      } else {
-        const nextOffset = clamped - range.from
-        if (nextOffset !== editorState.cursorOffset) {
-          editorState = { ...editorState, cursorOffset: nextOffset }
-        }
-      }
-      return
-    }
-
     const head = update.state.selection.main.head
-    const path = findPathAtPos(editorState, head)
+    const path = findPathAtPos(editorState, head) ?? findClosestPathAtPos(editorState, head)
     if (!path) return
     const token = getNodeByPath(editorState.root, path)
     if (!token) return
@@ -381,7 +401,10 @@
     const span = getSpan(editorState, inputPath)
     if (!span) return
     const range = getTextRange(span)
-    const nextOffset = clamp(head - range.from, 0, range.to - range.from)
+    const nextOffset =
+      editorState.mode === 'normal'
+        ? head
+        : clamp(head - range.from, 0, range.to - range.from)
     if (
       serializePath(editorState.currentPath) === serializePath(path) &&
       serializePath(editorState.currentTokPath) === serializePath(inputPath) &&
@@ -531,6 +554,7 @@
         ]
       })
     })
+    updateDebugView(view)
 
     syncView(
       view,
@@ -547,6 +571,8 @@
   // Tear down the editor view on destroy.
   onDestroy(() => {
     view?.destroy()
+    updateDebugView(null)
+    updateDebugControls(null)
     view = null
     sourceView?.destroy()
     sourceView = null

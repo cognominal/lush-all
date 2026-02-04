@@ -135,16 +135,14 @@ export function getSpan(
 
 // Build a selection that matches the current editor mode.
 export function buildSelection(state: StructuralEditorState): EditorSelection {
-  if (state.mode === 'insert') {
-    const span = getSpan(state, state.currentTokPath)
-    const range = getTextRange(span)
-    const caret = clamp(range.from + state.cursorOffset, range.from, range.to)
-    return EditorSelection.single(caret)
+  if (state.mode === 'normal') {
+    return EditorSelection.single(clamp(state.cursorOffset, 0, state.projectionText.length))
   }
 
-  const span = getSpan(state, state.currentPath)
+  const span = getSpan(state, state.currentTokPath)
   if (!span) return EditorSelection.single(0)
-  const caret = span.textFrom ?? span.from
+  const range = getTextRange(span)
+  const caret = clamp(range.from + state.cursorOffset, range.from, range.to)
   return EditorSelection.single(caret)
 }
 
@@ -267,6 +265,41 @@ export function findPathAtPos(
   return bestPath
 }
 
+// Locate the closest path to a position when no span contains it.
+export function findClosestPathAtPos(
+  state: StructuralEditorState,
+  pos: number
+): number[] | null {
+  let bestPath: number[] | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+  let bestSpanSize = Number.POSITIVE_INFINITY
+  let bestIsInput = false
+
+  for (const [key, span] of state.spansByPath.entries()) {
+    const path = parsePathKey(key)
+    if (!path) continue
+    const token = getNodeByPath(state.root, path)
+    if (!token) continue
+
+    const distance =
+      pos < span.from ? span.from - pos : pos > span.to ? pos - span.to : 0
+    const spanSize = span.to - span.from
+    const isInput = isSusyTok(token)
+
+    if (
+      distance < bestDistance ||
+      (distance === bestDistance &&
+        (spanSize < bestSpanSize || (spanSize === bestSpanSize && isInput && !bestIsInput)))
+    ) {
+      bestDistance = distance
+      bestSpanSize = spanSize
+      bestPath = path
+      bestIsInput = isInput
+    }
+  }
+
+  return bestPath
+}
 // Update the text payload at a path, returning a new Susy tree.
 export function updateTokenText(
   root: SusyNode,
@@ -382,10 +415,14 @@ export function enterInsertMode(state: StructuralEditorState): StructuralEditorS
 
 // Enter normal mode and align focus to the current token.
 export function enterNormalMode(state: StructuralEditorState): StructuralEditorState {
+  const span = getSpan(state, state.currentTokPath)
+  const range = getTextRange(span)
+  const absolute = clamp(range.from + state.cursorOffset, range.from, range.to)
   return {
     ...state,
     mode: 'normal',
-    currentPath: state.currentTokPath
+    currentPath: state.currentTokPath,
+    cursorOffset: absolute
   }
 }
 
@@ -566,14 +603,10 @@ function handleInsertKey(
 
 // Return the caret position for the current mode.
 function getCaretPosition(state: StructuralEditorState): number {
-  if (state.mode === 'insert') {
-    const span = getSpan(state, state.currentTokPath)
-    const range = getTextRange(span)
-    return clamp(range.from + state.cursorOffset, range.from, range.to)
-  }
-  const span = getSpan(state, state.currentPath)
-  if (!span) return 0
-  return span.textFrom ?? span.from
+  if (state.mode === 'normal') return clamp(state.cursorOffset, 0, state.projectionText.length)
+  const span = getSpan(state, state.currentTokPath)
+  const range = getTextRange(span)
+  return clamp(range.from + state.cursorOffset, range.from, range.to)
 }
 
 // Compute line starts for the current projection text.
@@ -607,7 +640,7 @@ function moveCaretTo(
   pos: number
 ): KeyHandlerResult {
   const clampedPos = clampCaretPosition(state, pos)
-  const path = findPathAtPos(state, clampedPos)
+  const path = findPathAtPos(state, clampedPos) ?? findClosestPathAtPos(state, clampedPos)
   if (!path) return { handled: true, state, tokPaths }
   const node = getNodeByPath(state.root, path)
   if (!node) return { handled: true, state, tokPaths }
@@ -615,13 +648,14 @@ function moveCaretTo(
   const span = getSpan(state, inputPath)
   const range = getTextRange(span)
   const nextOffset = clamp(clampedPos - range.from, 0, range.to - range.from)
+  const nextCursorOffset = state.mode === 'normal' ? clampedPos : nextOffset
   return {
     handled: true,
     state: {
       ...state,
       currentPath: path,
       currentTokPath: inputPath,
-      cursorOffset: nextOffset
+      cursorOffset: nextCursorOffset
     },
     tokPaths
   }
