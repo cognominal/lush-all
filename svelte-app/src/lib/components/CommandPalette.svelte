@@ -1,50 +1,78 @@
 <script lang="ts">
-  import { onDestroy, tick } from 'svelte'
-  import { commandsStore, filterCommands, type Command } from '$lib/logic/commands'
+  import { tick } from 'svelte'
+  import {
+    commandsStore,
+    detectPlatform,
+    filterCommands,
+    formatKeybindingLabel,
+    type Command,
+    type WhenContext
+  } from '$lib/logic/commands'
 
-  export let open = false
-  export let onClose: (() => void) | undefined = undefined
-  export let onExecute: ((command: Command) => void) | undefined = undefined
-
-  let query = ''
-  let selectedIdx = 0
-  let inputEl: HTMLInputElement | null = null
-
-  let wasOpen = false
-  let commands: Command[] = []
-  const unsubscribe = commandsStore.subscribe((value) => {
-    commands = value
-  })
-  onDestroy(() => {
-    unsubscribe()
-  })
-
-  $: results = filterCommands(commands, query)
-
-  $: if (open && !wasOpen) {
-    wasOpen = true
-    query = ''
-    selectedIdx = 0
-    void tick().then(() => inputEl?.focus())
+  type Props = {
+    open?: boolean
+    onClose?: () => void
+    onExecute?: (command: Command) => void
   }
 
-  $: if (!open && wasOpen) {
-    wasOpen = false
-  }
+  let { open = false, onClose, onExecute }: Props = $props()
 
+  let query = $state('')
+  let selectedIdx = $state(0)
+  let inputEl = $state<HTMLInputElement | null>(null)
+  let wasOpen = $state(false)
+  let commands = $state<Command[]>([])
+  let whenContext = $state<WhenContext>({})
+
+  const platform = detectPlatform()
+
+  // Subscribe to the command registry updates.
+  $effect(() => {
+    const unsubscribe = commandsStore.subscribe((value) => {
+      commands = value
+    })
+    return () => {
+      unsubscribe()
+    }
+  })
+
+  // Derive the current command list.
+  const results = $derived(filterCommands(commands, query, whenContext))
+
+  // Reset palette state on open.
+  $effect(() => {
+    if (open && !wasOpen) {
+      wasOpen = true
+      query = ''
+      selectedIdx = 0
+      void tick().then(() => inputEl?.focus())
+    }
+  })
+
+  // Track closing transitions.
+  $effect(() => {
+    if (!open && wasOpen) {
+      wasOpen = false
+    }
+  })
+
+  // Clamp the current selection index to available items.
   function clampIndex(value: number): number {
     if (results.length === 0) return 0
     return Math.max(0, Math.min(value, results.length - 1))
   }
 
+  // Close the palette.
   function close() {
     onClose?.()
   }
 
+  // Execute a selected command.
   function execute(command: Command) {
     onExecute?.(command)
   }
 
+  // Handle keyboard navigation within the palette.
   function onKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       event.preventDefault()
@@ -68,15 +96,18 @@
     }
   }
 
+  // Execute a command from pointer selection.
   function onSelect(command: Command) {
     execute(command)
   }
 
+  // Close the palette when clicking the overlay.
   function onOverlayClick(event: MouseEvent) {
     if (event.currentTarget !== event.target) return
     close()
   }
 
+  // Close the palette when the overlay captures escape.
   function onOverlayKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       event.preventDefault()
@@ -91,8 +122,8 @@
     role="dialog"
     aria-modal="true"
     tabindex="-1"
-    on:click={onOverlayClick}
-    on:keydown={onOverlayKeydown}
+    onclick={onOverlayClick}
+    onkeydown={onOverlayKeydown}
   >
     <div class="card w-full max-w-xl space-y-3 border border-surface-600/40 bg-surface-900/90 p-4">
       <div class="text-xs uppercase tracking-[0.35em] text-surface-400">Command Palette</div>
@@ -103,28 +134,35 @@
         placeholder="Type a command..."
         bind:value={query}
         bind:this={inputEl}
-        on:keydown={onKeyDown}
+        onkeydown={onKeyDown}
       />
 
       {#if results.length === 0}
         <div class="text-xs text-surface-400">No matching commands.</div>
       {:else}
-        <div class="max-h-72 overflow-auto rounded-lg border border-surface-600/30">
-          {#each results as command, idx (command.id)}
+        <div class="max-h-72 overflow-auto rounded-lg border border-surface-600/30" role="listbox">
+          {#each results as command, idx (command.command)}
             <button
               type="button"
-              class={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+              class={`flex w-full items-center justify-between gap-4 px-3 py-2 text-left text-sm ${
                 idx === selectedIdx
                   ? 'bg-tertiary-500/20 text-surface-50'
                   : 'bg-transparent text-surface-200 hover:bg-surface-700/40'
               }`}
-              on:mouseenter={() => (selectedIdx = idx)}
-              on:click={() => onSelect(command)}
+              role="option"
+              aria-selected={idx === selectedIdx}
+              onmouseenter={() => (selectedIdx = idx)}
+              onclick={() => onSelect(command)}
             >
-              <span>{command.label}</span>
-              {#if command.group}
-                <span class="text-xs text-surface-400">{command.group}</span>
-              {/if}
+              <span class="flex flex-col">
+                <span>{command.title}</span>
+                {#if command.category}
+                  <span class="text-xs text-surface-400">{command.category}</span>
+                {/if}
+              </span>
+              <span class="text-xs text-surface-400">
+                {formatKeybindingLabel(command.command, whenContext, platform)}
+              </span>
             </button>
           {/each}
         </div>
