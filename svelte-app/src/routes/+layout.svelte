@@ -1,20 +1,24 @@
 <script lang="ts">
   import '../app.css'
 
-  let aboutOpen = false
-  let aboutMessage = 'Lush app (early stage)'
+  let { children } = $props()
 
-  let loginOpen = false
-  let loginStatus: { state: 'idle' | 'loading' | 'loaded' | 'error'; message?: string } = {
+  let aboutOpen = $state(false)
+  let aboutMessage = $state('Lush app (early stage)')
+
+  let loginOpen = $state(false)
+  let loginStatus = $state<{ state: 'idle' | 'loading' | 'loaded' | 'error'; message?: string }>({
     state: 'idle'
-  }
-  let loginUserEmail: string | null = null
+  })
+  let loginUserEmail = $state<string | null>(null)
 
+  // Open the About dialog.
   function openAbout() {
     aboutMessage = 'Lush app (early stage)'
     aboutOpen = true
   }
 
+  // Open the login dialog and fetch session info.
   async function openLogin() {
     loginOpen = true
     loginStatus = { state: 'loading' }
@@ -48,6 +52,7 @@
     }
   }
 
+  // Continue with the WorkOS login flow.
   function continueLogin() {
     const returnTo = `${location.pathname}${location.search}${location.hash}`
     window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
@@ -62,6 +67,7 @@
     ) => Promise<Unlisten>
   }
 
+  // Resolve the Tauri event API when running in the desktop app.
   function getTauriEventApi(): TauriEventApi | null {
     const g = globalThis as unknown as { __TAURI__?: unknown }
     if (!g.__TAURI__ || typeof g.__TAURI__ !== 'object') return null
@@ -81,7 +87,7 @@
   import { onDestroy, onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
-  import { registerCommand, type Command } from '$lib/logic/commands'
+  import { registerCommand, registerKeybinding, type Command } from '$lib/logic/commands'
   import { setYamlFileContent } from '$lib/logic/yamlFile'
 
   let unlisten: Unlisten | null = null
@@ -89,21 +95,25 @@
   let teardownDomMenuAction: (() => void) | null = null
   let teardownPaletteHotkey: (() => void) | null = null
   let teardownEscapeClose: (() => void) | null = null
-  let paletteOpen = false
+  let paletteOpen = $state(false)
 
+  // Open the command palette.
   function openPalette() {
     paletteOpen = true
   }
 
+  // Close the command palette.
   function closePalette() {
     paletteOpen = false
   }
 
+  // Run a command handler and close the palette.
   function executeCommand(command: Command) {
     command.handler()
     closePalette()
   }
 
+  // Prompt the user for a YAML file and load it.
   async function openYamlFilePicker() {
     const input = document.createElement('input')
     input.type = 'file'
@@ -119,39 +129,65 @@
     setYamlFileContent(text)
   }
 
+  // Register menu commands in the VS Code-style registry.
   function registerMenuCommands() {
     registerCommand({
-      id: 'open-yaml-file',
-      label: 'Open yaml file...',
-      group: 'Lush',
+      command: 'workbench.action.showCommands',
+      title: 'Show All Commands',
+      category: 'View',
+      f1: true,
+      handler: () => {
+        openPalette()
+      }
+    })
+
+    registerKeybinding({
+      command: 'workbench.action.showCommands',
+      key: 'Ctrl+Shift+P',
+      mac: 'Cmd+Shift+P'
+    })
+
+    registerCommand({
+      command: 'lush.openYamlFile',
+      title: 'Open YAML File...',
+      category: 'Lush',
+      f1: true,
       handler: () => {
         void openYamlFilePicker()
       }
     })
 
+    registerKeybinding({
+      command: 'lush.openYamlFile',
+      key: 'Ctrl+O',
+      mac: 'Cmd+O'
+    })
+
     registerCommand({
-      id: 'open-editor',
-      label: 'Open editor',
-      group: 'Lush',
+      command: 'lush.openEditor',
+      title: 'Open Editor',
+      category: 'Lush',
+      f1: true,
       handler: () => {
         void goto('/editor')
       }
     })
 
     registerCommand({
-      id: 'open-docs',
-      label: 'Open docs',
-      group: 'Lush',
+      command: 'lush.openDocs',
+      title: 'Open Docs',
+      category: 'Lush',
+      f1: true,
       handler: () => {
         void goto('/docs?path=lush.md')
       }
     })
 
     registerCommand({
-      id: 'open-yaml-sample',
-      label: 'Open yaml_sample',
-      group: 'Lush',
-      notInPalette: true,
+      command: 'lush.openYamlSample',
+      title: 'Open yaml_sample',
+      category: 'Lush',
+      f1: false,
       handler: () => {
         setYamlFileContent(null)
         void goto('/yaml-explore')
@@ -159,29 +195,45 @@
     })
 
     registerCommand({
-      id: 'login',
-      label: 'Login',
-      group: 'Lush',
+      command: 'lush.login',
+      title: 'Login',
+      category: 'Lush',
+      f1: true,
       handler: () => {
         void openLogin()
       }
     })
 
     registerCommand({
-      id: 'about',
-      label: 'About Lush',
-      group: 'Lush',
+      command: 'lush.about',
+      title: 'About Lush',
+      category: 'Lush',
+      f1: true,
       handler: () => {
         openAbout()
       }
     })
   }
 
+  // Install global keyboard shortcuts for the command palette.
   function installPaletteHotkey() {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'F1') return
-      event.preventDefault()
-      openPalette()
+      if (event.key === 'F1') {
+        event.preventDefault()
+        openPalette()
+        return
+      }
+      if (event.key.toLowerCase() !== 'p') return
+      const isMac = navigator.platform.toLowerCase().includes('mac')
+      if (isMac && event.metaKey && event.shiftKey) {
+        event.preventDefault()
+        openPalette()
+        return
+      }
+      if (!isMac && event.ctrlKey && event.shiftKey) {
+        event.preventDefault()
+        openPalette()
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => {
@@ -189,6 +241,7 @@
     }
   }
 
+  // Install global escape handling for dialogs.
   function installEscapeClose() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -263,7 +316,7 @@
   {/if}
 
   <div class="flex-1 min-h-0 w-full overflow-hidden">
-    <slot />
+    {@render children?.()}
   </div>
 </div>
 
