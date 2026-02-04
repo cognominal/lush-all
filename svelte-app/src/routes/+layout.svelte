@@ -89,6 +89,7 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import { registerCommand, registerKeybinding, type Command } from '$lib/logic/commands'
   import { setYamlFileContent } from '$lib/logic/yamlFile'
+  import { workspace } from '$lib/config/workspaceConfiguration'
 
   let unlisten: Unlisten | null = null
   let teardownDomAbout: (() => void) | null = null
@@ -127,6 +128,30 @@
     if (!file) return
     const text = await file.text()
     setYamlFileContent(text)
+  }
+
+  // Register or update the block highlight command label.
+  function registerBlockHighlightCommand() {
+    const enabled = workspace
+      .getConfiguration()
+      .get('editor.blockSelectHighlight', true)
+    registerCommand({
+      command: 'lush.toggleBlockSelectHighlight',
+      title: enabled ? 'Unset Block Selection Highlight' : 'Set Block Selection Highlight',
+      category: 'Editor',
+      f1: true,
+      handler: () => {
+        toggleBlockSelectionHighlight()
+      }
+    })
+  }
+
+  // Toggle block-style highlight rendering for multiline selections.
+  function toggleBlockSelectionHighlight() {
+    const config = workspace.getConfiguration()
+    const current = config.get('editor.blockSelectHighlight', true)
+    config.update('editor.blockSelectHighlight', !current)
+    registerBlockHighlightCommand()
   }
 
   // Register menu commands in the VS Code-style registry.
@@ -213,6 +238,8 @@
         openAbout()
       }
     })
+
+    registerBlockHighlightCommand()
   }
 
   // Install global keyboard shortcuts for the command palette.

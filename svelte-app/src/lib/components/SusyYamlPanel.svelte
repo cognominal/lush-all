@@ -1,16 +1,25 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import {
+    Compartment,
     EditorState,
     StateEffect,
     StateField,
-    type Range,
+    type Extension,
     type StateEffect as StateEffectValue
   } from '@codemirror/state'
-  import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
+  import {
+    Decoration,
+    EditorView,
+    ViewPlugin,
+    type DecorationSet,
+    type ViewUpdate
+  } from '@codemirror/view'
   import { basicSetup } from 'codemirror'
   import { yaml } from '@codemirror/lang-yaml'
   import { oneDark } from '@codemirror/theme-one-dark'
+  import { foldedRanges } from '@codemirror/language'
+  import { onDidChangeConfiguration, workspace } from '$lib/config/workspaceConfiguration'
   import {
     findSusyYamlPathAtPos,
     projectSusyYamlView,
@@ -34,6 +43,11 @@
   let host: HTMLDivElement
   let view: EditorView | null = null
   let spansByPath = $state<Map<string, Span>>(new Map())
+  let teardownConfig: (() => void) | null = null
+  const highlightCompartment = new Compartment()
+  let blockHighlightEnabled = workspace
+    .getConfiguration()
+    .get('editor.blockSelectHighlight', true)
 
   const dispatch = createEventDispatcher<{ focusPath: number[] }>()
 
@@ -43,36 +57,183 @@
   let yamlText = $state(emptyMessage)
   let lastActiveKey = $state<string | null>(null)
 
-  const setDecorations = StateEffect.define<DecorationSet>()
-  const decorationsField = StateField.define<DecorationSet>({
-    // Seed decorations with an empty set.
+  const setHighlightRange = StateEffect.define<{ from: number; to: number } | null>()
+  const highlightRangeField = StateField.define<{ from: number; to: number } | null>({
+    // Track the current highlight range within the editor state.
+    create() {
+      return null
+    },
+    update(range, tr) {
+      let next = range
+      if (range) {
+        next = {
+          from: tr.changes.mapPos(range.from),
+          to: tr.changes.mapPos(range.to)
+        }
+      }
+      for (const effect of tr.effects) {
+        if (!effect.is(setHighlightRange)) continue
+        const value = effect.value
+        if (!value) {
+          next = null
+          continue
+        }
+        const from = Math.max(0, Math.min(value.from, tr.state.doc.length))
+        const to = Math.max(from, Math.min(value.to, tr.state.doc.length))
+        next = { from, to }
+      }
+      return next
+    }
+  })
+
+  const highlightDecorationsField = StateField.define<DecorationSet>({
+    // Seed highlight decorations with an empty set.
     create() {
       return Decoration.none
     },
-    // Replace decorations when an effect provides a new set.
+    // Update mark decorations from the highlight effect.
     update(deco, tr) {
+      let next = deco.map(tr.changes)
       for (const effect of tr.effects) {
-        if (effect.is(setDecorations)) return effect.value
+        if (!effect.is(setHighlightRange)) continue
+        const range = effect.value
+        if (!range) {
+          next = Decoration.none
+          continue
+        }
+        const from = Math.max(0, Math.min(range.from, tr.state.doc.length))
+        const to = Math.max(from, Math.min(range.to, tr.state.doc.length))
+        next = Decoration.set([
+          Decoration.mark({ class: 'cm-susy-yaml-focus' }).range(from, to)
+        ])
       }
-      return deco.map(tr.changes)
+      return next
     },
-    // Expose the decorations to CodeMirror view.
+    // Expose mark decorations to the view layer.
     provide: (field) => EditorView.decorations.from(field)
   })
 
-  // Build highlight decorations for the active token path.
-  function buildHighlightDecorations(): DecorationSet {
-    if (!activePath) return Decoration.none
+  // Choose the highlight extension set based on configuration.
+  function buildHighlightExtensions(): Extension {
+    return blockHighlightEnabled
+      ? [highlightRangeField, highlightOverlay]
+      : [highlightDecorationsField]
+  }
+
+  // Reconfigure the editor when highlight settings change.
+  function syncHighlightMode(): void {
+    if (!view) return
+    view.dispatch({
+      effects: highlightCompartment.reconfigure(buildHighlightExtensions())
+    })
+  }
+
+  // Build the active highlight range for the current path.
+  function getHighlightRange(): { from: number; to: number } | null {
+    if (!activePath) return null
     const span = spansByPath.get(serializePath(activePath))
-    if (!span) return Decoration.none
+    if (!span) return null
     const from = span.textFrom ?? span.from
     const to = span.textTo ?? span.to
-    if (from >= to) return Decoration.none
-    const ranges: Array<Range<Decoration>> = [
-      Decoration.mark({ class: 'cm-susy-yaml-focus' }).range(from, to)
-    ]
-    return Decoration.set(ranges, true)
+    if (from >= to) return null
+    return { from, to }
   }
+
+  // Clamp the incoming highlight range to the document bounds.
+  function clampHighlightRange(
+    view: EditorView,
+    range: { from: number; to: number }
+  ): { from: number; to: number } {
+    const docLength = view.state.doc.length
+    const from = Math.max(0, Math.min(range.from, docLength))
+    const to = Math.max(from, Math.min(range.to, docLength))
+    return { from, to }
+  }
+
+  // Collapse the highlight to the visible portion when folded.
+  function resolveVisibleRange(
+    view: EditorView,
+    range: { from: number; to: number }
+  ): { from: number; to: number } {
+    const normalized = clampHighlightRange(view, range)
+    let visibleTo = normalized.to
+    foldedRanges(view.state).between(normalized.from, normalized.to, (from) => {
+      if (from > normalized.from && from < visibleTo) {
+        visibleTo = from
+        return false
+      }
+    })
+    return { from: normalized.from, to: visibleTo }
+  }
+
+  // Position the highlight overlay to cover every visible selected line.
+  function updateHighlightOverlay(
+    view: EditorView,
+    overlay: HTMLDivElement
+  ): void {
+    const range = view.state.field(highlightRangeField)
+    if (!range || range.from === range.to) {
+      overlay.style.display = 'none'
+      return
+    }
+    const visible = resolveVisibleRange(view, range)
+    if (visible.from >= visible.to) {
+      overlay.style.display = 'none'
+      return
+    }
+    const fromCoords = view.coordsAtPos(visible.from)
+    const toCoords = view.coordsAtPos(visible.to, -1)
+    if (!fromCoords || !toCoords) {
+      overlay.style.display = 'none'
+      return
+    }
+    const scrollRect = view.scrollDOM.getBoundingClientRect()
+    const contentRect = view.contentDOM.getBoundingClientRect()
+    const top = Math.min(fromCoords.top, toCoords.top)
+    const bottom = Math.max(fromCoords.bottom, toCoords.bottom)
+    const left = contentRect.left - scrollRect.left + view.scrollDOM.scrollLeft
+    const width = contentRect.width
+    overlay.style.display = 'block'
+    overlay.style.left = `${left}px`
+    overlay.style.top = `${top - scrollRect.top + view.scrollDOM.scrollTop}px`
+    overlay.style.width = `${width}px`
+    overlay.style.height = `${Math.max(0, bottom - top)}px`
+  }
+
+  const highlightOverlay = ViewPlugin.fromClass(
+    class {
+      overlay: HTMLDivElement
+      scrollRoot: HTMLElement
+      onScroll: () => void
+
+      // Create and attach the highlight overlay element.
+      constructor(view: EditorView) {
+        this.overlay = document.createElement('div')
+        this.overlay.className = 'cm-susy-yaml-focus-block'
+        this.scrollRoot = view.scrollDOM
+        this.scrollRoot.appendChild(this.overlay)
+        this.onScroll = () => updateHighlightOverlay(view, this.overlay)
+        this.scrollRoot.addEventListener('scroll', this.onScroll)
+        updateHighlightOverlay(view, this.overlay)
+      }
+
+      // Recompute the overlay when the viewport or highlight range changes.
+      update(update: ViewUpdate) {
+        const rangeChanged =
+          update.startState.field(highlightRangeField) !==
+          update.state.field(highlightRangeField)
+        if (update.docChanged || update.viewportChanged || update.geometryChanged || rangeChanged) {
+          updateHighlightOverlay(update.view, this.overlay)
+        }
+      }
+
+      // Clean up DOM and listeners on teardown.
+      destroy() {
+        this.overlay.remove()
+        this.scrollRoot.removeEventListener('scroll', this.onScroll)
+      }
+    }
+  )
 
   // Sync CodeMirror document and highlight state.
   function syncView(nextDoc: string) {
@@ -81,14 +242,14 @@
     if (nextDoc === current) return
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: nextDoc },
-      effects: [setDecorations.of(buildHighlightDecorations())]
+      effects: [setHighlightRange.of(getHighlightRange())]
     })
   }
 
-  // Update highlight decorations after state changes.
+  // Update the highlight overlay after state changes.
   function syncHighlight(): void {
     if (!view) return
-    const baseEffect = setDecorations.of(buildHighlightDecorations()) as StateEffectValue<unknown>
+    const baseEffect = setHighlightRange.of(getHighlightRange()) as StateEffectValue<unknown>
     let effects: Array<StateEffectValue<unknown>> = [baseEffect]
     if (activePath) {
       const key = serializePath(activePath)
@@ -113,7 +274,7 @@
           oneDark,
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
-          decorationsField,
+          highlightCompartment.of(buildHighlightExtensions()),
           EditorView.domEventHandlers({
             // Sync focus path when YAML is clicked.
             mousedown: (event) => {
@@ -135,10 +296,21 @@
               backgroundColor: 'rgba(15, 23, 42, 0.7)'
             },
             '.cm-content': {
-              padding: '16px'
+              padding: '16px',
+              position: 'relative',
+              zIndex: 1
             },
             '.cm-scroller': {
-              overflow: 'auto'
+              overflow: 'auto',
+              position: 'relative'
+            },
+            '.cm-susy-yaml-focus-block': {
+              position: 'absolute',
+              pointerEvents: 'none',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              outline: '1px solid rgba(56, 189, 248, 0.7)',
+              borderRadius: '3px',
+              zIndex: 0
             },
             '.cm-susy-yaml-focus': {
               backgroundColor: 'rgba(56, 189, 248, 0.2)',
@@ -148,6 +320,13 @@
           })
         ]
       })
+    })
+    teardownConfig = onDidChangeConfiguration((event) => {
+      if (!event.affectsConfiguration('editor.blockSelectHighlight')) return
+      const next = workspace.getConfiguration().get('editor.blockSelectHighlight', true)
+      if (next === blockHighlightEnabled) return
+      blockHighlightEnabled = next
+      syncHighlightMode()
     })
   })
 
@@ -176,7 +355,10 @@
     syncHighlight()
   })
 
+  // Tear down the editor view and listeners.
   onDestroy(() => {
+    teardownConfig?.()
+    teardownConfig = null
     view?.destroy()
     view = null
   })
