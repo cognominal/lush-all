@@ -146,7 +146,7 @@
     view: EditorView,
     overlay: HTMLDivElement
   ): void {
-    const range = view.state.field(highlightRangeField)
+    const range = view.state.field(highlightRangeField, false)
     if (!range || range.from === range.to) {
       overlay.style.display = 'none'
       return
@@ -156,23 +156,34 @@
       overlay.style.display = 'none'
       return
     }
-    const fromCoords = view.coordsAtPos(visible.from)
-    const toCoords = view.coordsAtPos(visible.to, -1)
-    if (!fromCoords || !toCoords) {
-      overlay.style.display = 'none'
-      return
-    }
-    const scrollRect = view.scrollDOM.getBoundingClientRect()
-    const contentRect = view.contentDOM.getBoundingClientRect()
-    const top = Math.min(fromCoords.top, toCoords.top)
-    const bottom = Math.max(fromCoords.bottom, toCoords.bottom)
-    const left = contentRect.left - scrollRect.left + view.scrollDOM.scrollLeft
-    const width = contentRect.width
-    overlay.style.display = 'block'
-    overlay.style.left = `${left}px`
-    overlay.style.top = `${top - scrollRect.top + view.scrollDOM.scrollTop}px`
-    overlay.style.width = `${width}px`
-    overlay.style.height = `${Math.max(0, bottom - top)}px`
+    view.requestMeasure({
+      read: () => {
+        const fromCoords = view.coordsAtPos(visible.from)
+        const toCoords = view.coordsAtPos(visible.to, -1)
+        if (!fromCoords || !toCoords) return null
+        const scrollRect = view.scrollDOM.getBoundingClientRect()
+        const contentRect = view.contentDOM.getBoundingClientRect()
+        return {
+          top: Math.min(fromCoords.top, toCoords.top),
+          bottom: Math.max(fromCoords.bottom, toCoords.bottom),
+          left: contentRect.left - scrollRect.left + view.scrollDOM.scrollLeft,
+          width: contentRect.width,
+          scrollTop: view.scrollDOM.scrollTop,
+          scrollTopRect: scrollRect.top
+        }
+      },
+      write: (data) => {
+        if (!data) {
+          overlay.style.display = 'none'
+          return
+        }
+        overlay.style.display = 'block'
+        overlay.style.left = `${data.left}px`
+        overlay.style.top = `${data.top - data.scrollTopRect + data.scrollTop}px`
+        overlay.style.width = `${data.width}px`
+        overlay.style.height = `${Math.max(0, data.bottom - data.top)}px`
+      }
+    })
   }
 
   const highlightOverlay = ViewPlugin.fromClass(
@@ -195,8 +206,8 @@
       // Recompute the overlay when the viewport or highlight range changes.
       update(update: ViewUpdate) {
         const rangeChanged =
-          update.startState.field(highlightRangeField) !==
-          update.state.field(highlightRangeField)
+          update.startState.field(highlightRangeField, false) !==
+          update.state.field(highlightRangeField, false)
         if (update.docChanged || update.viewportChanged || update.geometryChanged || rangeChanged) {
           updateHighlightOverlay(update.view, this.overlay)
         }
