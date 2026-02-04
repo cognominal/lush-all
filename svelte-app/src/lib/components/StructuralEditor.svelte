@@ -157,6 +157,17 @@
   let sourceLanguage = $state<SourceLanguage>('svelte')
   let selectedSample = $state(DEFAULT_SAMPLE_OPTION)
 
+  // Expose editor state for devtools debugging.
+  function updateDebugState(next: StructuralEditorState, nextTokPaths: number[][]) {
+    if (!import.meta.env.DEV) return
+    const target = window as Window & {
+      __structuralEditorState?: StructuralEditorState
+      __structuralEditorTokPaths?: number[][]
+    }
+    target.__structuralEditorState = next
+    target.__structuralEditorTokPaths = nextTokPaths
+  }
+
   const filteredSamples = $derived(
     SAMPLE_OPTIONS.filter((option) => option.language === sourceLanguage)
   )
@@ -175,6 +186,10 @@
   $effect(() => {
     if (!isMounted) return
     persistSelection()
+  })
+
+  $effect(() => {
+    updateDebugState(editorState, tokPaths)
   })
 
   $effect(() => {
@@ -204,6 +219,7 @@
       highlightRegistry,
       focusWidget
     )
+    updateDebugState(editorState, tokPaths)
     if (emitFocus) dispatchFocusPath(editorState)
   }
 
@@ -331,13 +347,14 @@
     loadSampleFile(selection.value)
   }
 
-  // Clamp selection updates to the current token span.
+  // Track selection updates and sync cursor/path state.
   const updateListener = EditorView.updateListener.of((update) => {
     if (!view) return
     if (!update.selectionSet) return
 
     if (editorState.mode === 'insert') {
       const span = getSpan(editorState, editorState.currentTokPath)
+      if (!span) return
       const range = getTextRange(span)
       const head = update.state.selection.main.head
       const clamped = clamp(head, range.from, range.to)
@@ -353,14 +370,30 @@
       return
     }
 
-    if (editorState.mode === 'normal') {
-      const span = getSpan(editorState, editorState.currentPath)
-      if (!span) return
-      const caret = span.textFrom ?? span.from
-      const selection = update.state.selection.main
-      if (selection.from !== caret || selection.to !== caret) {
-        view.dispatch({ selection: { anchor: caret } })
-      }
+    const head = update.state.selection.main.head
+    const path = findPathAtPos(editorState, head)
+    if (!path) return
+    const token = getNodeByPath(editorState.root, path)
+    if (!token) return
+    const inputPath = isSusyTok(token)
+      ? path
+      : resolveInsertTarget(editorState.root, path).path
+    const span = getSpan(editorState, inputPath)
+    if (!span) return
+    const range = getTextRange(span)
+    const nextOffset = clamp(head - range.from, 0, range.to - range.from)
+    if (
+      serializePath(editorState.currentPath) === serializePath(path) &&
+      serializePath(editorState.currentTokPath) === serializePath(inputPath) &&
+      editorState.cursorOffset === nextOffset
+    ) {
+      return
+    }
+    editorState = {
+      ...editorState,
+      currentPath: path,
+      currentTokPath: inputPath,
+      cursorOffset: nextOffset
     }
   })
 
