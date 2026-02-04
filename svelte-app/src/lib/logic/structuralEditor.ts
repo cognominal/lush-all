@@ -47,6 +47,7 @@ type EventKeyMap = Map<string, NodeKeyHandler>
 type NodeKeyMap = Map<string, EventKeyMap>
 
 type EditorMode = StructuralEditorState['mode']
+type CursorCommandId = 'cursorLeft' | 'cursorRight' | 'cursorUp' | 'cursorDown'
 
 // Build the initial structural editor state from a sample JS tree.
 export function createInitialState(): ProjectionSnapshot {
@@ -626,9 +627,17 @@ function moveCaretTo(
   }
 }
 
-// Handle arrow key navigation in both modes.
-function handleArrowKey(
-  event: KeyboardEvent,
+// Map arrow keys to cursor command IDs.
+const arrowCommandByKey: Record<string, CursorCommandId> = {
+  ArrowLeft: 'cursorLeft',
+  ArrowRight: 'cursorRight',
+  ArrowUp: 'cursorUp',
+  ArrowDown: 'cursorDown'
+}
+
+// Execute a cursor command for arrow key navigation.
+function runCursorCommand(
+  commandId: CursorCommandId,
   state: StructuralEditorState,
   tokPaths: number[][]
 ): KeyHandlerResult {
@@ -640,20 +649,20 @@ function handleArrowKey(
   const lineEnd = nextLineStart - 1
   const column = caret - lineStart
 
-  if (event.key === 'ArrowLeft') {
+  if (commandId === 'cursorLeft') {
     return moveCaretTo(state, tokPaths, caret - 1)
   }
-  if (event.key === 'ArrowRight') {
+  if (commandId === 'cursorRight') {
     return moveCaretTo(state, tokPaths, caret + 1)
   }
-  if (event.key === 'ArrowUp') {
+  if (commandId === 'cursorUp') {
     const prevLineStart = lineStarts[lineIndex - 1]
     if (prevLineStart == null) return { handled: true, state, tokPaths }
     const prevLineEnd = lineStart - 1
     const target = Math.min(prevLineStart + column, prevLineEnd)
     return moveCaretTo(state, tokPaths, target)
   }
-  if (event.key === 'ArrowDown') {
+  if (commandId === 'cursorDown') {
     if (lineIndex + 1 >= lineStarts.length) return { handled: true, state, tokPaths }
     const nextLineEnd =
       lineIndex + 2 < lineStarts.length
@@ -663,6 +672,17 @@ function handleArrowKey(
     return moveCaretTo(state, tokPaths, target)
   }
   return { handled: true, state, tokPaths }
+}
+
+// Handle arrow key navigation by dispatching cursor commands.
+function handleArrowKey(
+  event: KeyboardEvent,
+  state: StructuralEditorState,
+  tokPaths: number[][]
+): KeyHandlerResult {
+  const commandId = arrowCommandByKey[event.key]
+  if (!commandId) return { handled: true, state, tokPaths }
+  return runCursorCommand(commandId, state, tokPaths)
 }
 
 const sharedEventKeyHandlers: EventKeyMap = new Map([
