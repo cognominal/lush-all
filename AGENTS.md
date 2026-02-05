@@ -7,6 +7,8 @@
 - Use `bun` to install and run scripts; avoid adding `npm`/`pnpm`/`yarn`
   workflows.
 - Use `bun test` for tests; do not add new Jest tests.
+- Each time you add code, run `bun test`. Each time you add tests, run
+  `bun test` after adding them.
 - Builds must be clean: no errors and no warnings.
 - For Markdown, ensure blank lines around headings and lists to avoid nvim
   lint errors.

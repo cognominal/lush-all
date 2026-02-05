@@ -14,6 +14,11 @@
   import { codeFolding, foldEffect, foldedRanges, unfoldEffect } from '@codemirror/language'
   import { keymap } from '@codemirror/view'
   import { onDidChangeConfiguration, workspace } from '$lib/config/workspaceConfiguration'
+  import { createPrefixKeyHandler } from '$lib/logic/keySequence'
+  import type {
+    YamlCommandId,
+    YamlCommandResult
+  } from '$lib/logic/yamlStructuralEditor'
 
   const {
     value,
@@ -21,23 +26,24 @@
     foldToggleRequest = null,
     onChange = undefined,
     onCursor = undefined,
-    onReturn = undefined
+    onCommand = undefined
   } = $props<{
     value: string
     highlightRange?: { from: number; to: number } | null
     foldToggleRequest?: { range: { from: number; to: number } | null; id: number } | null
     onChange?: (value: string) => void
     onCursor?: (offset: number) => void
-    onReturn?: (
-      docText: string,
-      cursorOffset: number
-    ) => { from: number; to: number; insert: string; selectionOffset: number } | null
+    onCommand?: (
+      command: YamlCommandId,
+      ctx: { docText: string; selection: { from: number; to: number } }
+    ) => YamlCommandResult | null
   }>()
 
   let host: HTMLDivElement
   let view: EditorView | null = null
   let lastFoldToggleId = -1
   let teardownConfig: (() => void) | null = null
+  const prefixKeys = createPrefixKeyHandler<'bracket-left' | 'bracket-right'>(800)
 
   const setHighlight = StateEffect.define<{ from: number; to: number } | null>()
   const highlightCompartment = new Compartment()
@@ -227,6 +233,92 @@
     onCursor?.(view.state.selection.main.head)
   }
 
+  // Dispatch a command result into the editor view.
+  function applyCommandResult(result: YamlCommandResult): void {
+    if (!view) return
+    if (result.changes) {
+      view.dispatch({
+        changes: result.changes,
+        selection: { anchor: result.selection.from, head: result.selection.to }
+      })
+      return
+    }
+    view.dispatch({
+      selection: { anchor: result.selection.from, head: result.selection.to }
+    })
+  }
+
+  // Run a structural command and apply its result if available.
+  function runCommand(command: YamlCommandId): boolean {
+    if (!view || !onCommand) return false
+    const selection = view.state.selection.main
+    const result = onCommand(command, {
+      docText: view.state.doc.toString(),
+      selection: { from: selection.from, to: selection.to }
+    })
+    if (!result) return false
+    applyCommandResult(result)
+    return true
+  }
+
+  // Build keymap handlers for YAML structural editing commands.
+  function buildCommandKeymap() {
+    return keymap.of([
+      {
+        key: 'Enter',
+        run: () => runCommand('blockScalar') || runCommand('addItem')
+      },
+      {
+        key: 'Space',
+        run: () => runCommand('toggleInlineOrBlock')
+      },
+      {
+        key: 'Tab',
+        run: () => runCommand('nextField')
+      },
+      {
+        key: 'Shift-Tab',
+        run: () => runCommand('prevField')
+      },
+      {
+        key: 'Backspace',
+        run: () => runCommand('deleteSelection')
+      },
+      {
+        key: 'Delete',
+        run: () => runCommand('deleteSelection')
+      },
+      {
+        key: 'Escape',
+        run: () => runCommand('enlargeSelection')
+      },
+      {
+        key: '[',
+        run: () => {
+          prefixKeys.setPrefix('bracket-left')
+          return true
+        }
+      },
+      {
+        key: ']',
+        run: () => {
+          prefixKeys.setPrefix('bracket-right')
+          return true
+        }
+      },
+      {
+        key: 'c',
+        run: () => {
+          return (
+            prefixKeys.consume('bracket-left', () => runCommand('prevComment')) ||
+            prefixKeys.consume('bracket-right', () => runCommand('nextComment'))
+          )
+        }
+      }
+    ])
+  }
+
+  // Initialize the CodeMirror editor instance and listeners.
   onMount(() => {
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
@@ -244,24 +336,7 @@
           codeFolding(),
           yaml(),
           oneDark,
-          keymap.of([
-            {
-              key: 'Enter',
-              run: () => {
-                if (!view) return true
-                const offset = view.state.selection.main.head
-                const docText = view.state.doc.toString()
-                const res = onReturn?.(docText, offset)
-                if (res) {
-                  view.dispatch({
-                    changes: { from: res.from, to: res.to, insert: res.insert },
-                    selection: { anchor: res.selectionOffset }
-                  })
-                }
-                return true
-              }
-            }
-          ]),
+          buildCommandKeymap(),
           updateListener,
           highlightCompartment.of(buildHighlightExtensions()),
           EditorView.theme({

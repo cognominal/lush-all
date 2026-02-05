@@ -98,6 +98,25 @@ export type SusyLeaf = SusyINode & { text: string }
 export type SusyNode = SusyINode | SusyLeaf
 export type SusyTok = SusyLeaf
 
+export type SusyPlaceholderKind = 'key' | 'value' | 'entry' | 'scalar'
+
+export type SusyYamlMeta = {
+  yamlKind: 'mapping' | 'sequence' | 'scalar'
+  yamlStyle: 'inline' | 'block'
+  yamlScalarStyle: 'plain' | 'single' | 'double' | 'block'
+  yamlBlockIndent: number
+  yamlAnchors?: string
+  yamlTags?: string
+  yamlComments?: { before: string[]; inline: string[]; after: string[] }
+}
+
+export type SusyYamlNode = SusyNode & {
+  kind: 'YAML'
+  isPlaceHolder?: boolean
+  placeholderKind?: SusyPlaceholderKind
+  meta?: SusyYamlMeta
+}
+
 export type SusyLine = SusyNode[]
 export type SusyLines = SusyLine[]
 
@@ -126,6 +145,29 @@ export function susyText(token: SusyNode | undefined): string {
     return token.kids.map(susyText).join('')
   }
   return ''
+}
+
+// Check if the node is a YAML-specific Susy node.
+export function isSusyYamlNode(token: SusyNode): token is SusyYamlNode {
+  return token.kind === 'YAML'
+}
+
+// Check whether a Susy node is marked as a placeholder.
+export function isSusyPlaceholder(token: SusyNode | undefined): boolean {
+  if (!token) return false
+  return (token as SusyYamlNode).isPlaceHolder === true
+}
+
+// Provide a default placeholder string for a YAML placeholder kind.
+export function defaultYamlPlaceholder(kind: SusyPlaceholderKind): string {
+  switch (kind) {
+    case 'key':
+      return 'key'
+    case 'value':
+    case 'entry':
+    case 'scalar':
+      return 'null'
+  }
 }
 
 // Split a line into Susy tokens of spaces and naked strings.

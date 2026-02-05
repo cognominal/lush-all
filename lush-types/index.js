@@ -111,6 +111,29 @@ export function susyText(token) {
   return ''
 }
 
+// Check if the node is a YAML-specific Susy node.
+export function isSusyYamlNode(token) {
+  return token.kind === 'YAML'
+}
+
+// Check whether a Susy node is marked as a placeholder.
+export function isSusyPlaceholder(token) {
+  if (!token) return false
+  return token.isPlaceHolder === true
+}
+
+// Provide a default placeholder string for a YAML placeholder kind.
+export function defaultYamlPlaceholder(kind) {
+  switch (kind) {
+    case 'key':
+      return 'key'
+    case 'value':
+    case 'entry':
+    case 'scalar':
+      return 'null'
+  }
+}
+
 export function tokenizeSusyLine(text) {
   if (!text) return []
   const tokens = []

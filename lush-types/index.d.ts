@@ -139,6 +139,25 @@ export type SusyLeaf = SusyINode & { text: string }
 export type SusyNode = SusyINode | SusyLeaf
 export type SusyTok = SusyLeaf
 
+export type SusyPlaceholderKind = 'key' | 'value' | 'entry' | 'scalar'
+
+export type SusyYamlMeta = {
+  yamlKind: 'mapping' | 'sequence' | 'scalar'
+  yamlStyle: 'inline' | 'block'
+  yamlScalarStyle: 'plain' | 'single' | 'double' | 'block'
+  yamlBlockIndent: number
+  yamlAnchors?: string
+  yamlTags?: string
+  yamlComments?: { before: string[]; inline: string[]; after: string[] }
+}
+
+export type SusyYamlNode = SusyNode & {
+  kind: 'YAML'
+  isPlaceHolder?: boolean
+  placeholderKind?: SusyPlaceholderKind
+  meta?: SusyYamlMeta
+}
+
 export type SusyLine = SusyNode[]
 export type SusyLines = SusyLine[]
 
@@ -187,6 +206,9 @@ export function findSusyYamlPathAtPos(
 ): number[] | null
 
 export function susyText(token: SusyNode | undefined): string
+export function isSusyYamlNode(token: SusyNode): token is SusyYamlNode
+export function isSusyPlaceholder(token: SusyNode | undefined): boolean
+export function defaultYamlPlaceholder(kind: SusyPlaceholderKind): string
 export function tokenizeSusyLine(text: string): SusyLine
 export function stringToSusyLines(input: string): SusyLines
 

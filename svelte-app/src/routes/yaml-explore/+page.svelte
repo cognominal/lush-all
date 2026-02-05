@@ -13,7 +13,7 @@
     tokenInputAsYaml,
     type YamlAnalysis
   } from '$lib/logic/yamlAnalysis'
-  import { add_sequence_or_map } from '$lib/logic/inputHandling'
+  import { applyYamlCommand } from '$lib/logic/yamlStructuralEditor'
 
   let yamlText = YAML_SAMPLE
   let analysis: YamlAnalysis = analyzeYaml(yamlText)
@@ -57,16 +57,9 @@
             {foldToggleRequest}
             onChange={(next) => scheduleParse(next)}
             onCursor={(offset) => (cursorOffset = offset)}
-            onReturn={(docText, cursorOffset) => {
-              const res = add_sequence_or_map(docText, cursorOffset)
-              if (!res) return null
-              return {
-                from: res.changes.from,
-                to: res.changes.to,
-                insert: res.changes.insert,
-                selectionOffset: res.selectionOffset
-              }
-            }}
+            onCommand={(command, ctx) =>
+              applyYamlCommand(command, { text: ctx.docText, selection: ctx.selection })
+            }
           />
         </div>
 
@@ -115,16 +108,12 @@
                         {foldToggleRequest}
                         onChange={(next) => scheduleParse(next)}
                         onCursor={(offset) => (cursorOffset = offset)}
-                        onReturn={(docText, cursorOffset) => {
-                          const res = add_sequence_or_map(docText, cursorOffset)
-                          if (!res) return null
-                          return {
-                            from: res.changes.from,
-                            to: res.changes.to,
-                            insert: res.changes.insert,
-                            selectionOffset: res.selectionOffset
-                          }
-                        }}
+                        onCommand={(command, ctx) =>
+                          applyYamlCommand(command, {
+                            text: ctx.docText,
+                            selection: ctx.selection
+                          })
+                        }
                       />
                     </div>
                   {/snippet}
