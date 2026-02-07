@@ -2,7 +2,13 @@
   "name": "lush-all",
   "private": true,
   "packageManager": "bun@1.1.34",
-  "workspaces": ["yaml", "lush-types", "lush-term-editor", "svelte-app"],
+  "workspaces": [
+    "yaml",
+    "lush-types",
+    "lush-term-editor",
+    "svelte-app",
+    "lush-lang"
+  ],
   "devDependencies": {
     "@types/node": "^22.10.2"
   },
