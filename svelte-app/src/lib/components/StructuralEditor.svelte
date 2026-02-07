@@ -23,6 +23,7 @@
   } from '@lush/structural'
   import {
     susyJsProjection,
+    susyRuleprojProjection,
     susySvelteProjection,
     susyTsProjection,
     susyYamlProjection
@@ -45,13 +46,40 @@
     type BreadcrumbItem
   } from '$lib/logic/structuralEditor'
 
-  type SourceLanguage = 'svelte' | 'js' | 'ts' | 'yaml'
+  type ProjectionLanguage = 'svelte' | 'js' | 'ts' | 'yaml' | 'ruleproj'
 
-  const LANGUAGE_LABELS: Record<SourceLanguage, string> = {
-    svelte: 'Svelte',
-    js: 'JavaScript',
-    ts: 'TypeScript',
-    yaml: 'YAML'
+  type ProjectionConfig = {
+    language: ProjectionLanguage
+    label: string
+    project: (source: string) => SusyNode
+  }
+
+  const PROJECTION_BY_LANGUAGE: Record<ProjectionLanguage, ProjectionConfig> = {
+    svelte: {
+      language: 'svelte',
+      label: 'Svelte',
+      project: susySvelteProjection
+    },
+    js: {
+      language: 'js',
+      label: 'JavaScript',
+      project: susyJsProjection
+    },
+    ts: {
+      language: 'ts',
+      label: 'TypeScript',
+      project: susyTsProjection
+    },
+    yaml: {
+      language: 'yaml',
+      label: 'YAML',
+      project: susyYamlProjection
+    },
+    ruleproj: {
+      language: 'ruleproj',
+      label: 'Ruleproj',
+      project: susyRuleprojProjection
+    }
   }
 
   const DEFAULT_SAMPLE_OPTION = ''
@@ -60,41 +88,73 @@
   type SampleOption = {
     label: string
     value: string
-    language: SourceLanguage
+    extension: string
+    language: ProjectionLanguage | null
+    supported: boolean
   }
 
-  const sampleContent = import.meta.glob<string>('../samples/*.{svelte,js,ts,yaml}', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-  })
+  type LanguageOption = {
+    id: string
+    label: string
+    extension: string
+    language: ProjectionLanguage | null
+    supported: boolean
+  }
 
-  // Map file extensions to the source language.
-  function getSampleLanguage(path: string): SourceLanguage {
-    if (path.endsWith('.ts')) return 'ts'
-    if (path.endsWith('.js')) return 'js'
-    if (path.endsWith('.yaml')) return 'yaml'
-    return 'svelte'
+  const sampleContent = import.meta.glob<string>(
+    '../samples/*.{svelte,js,ts,yaml,ruleproj}',
+    {
+      eager: true,
+      query: '?raw',
+      import: 'default'
+    }
+  )
+
+  // Read the file extension from a sample path.
+  function getFileExtension(path: string): string {
+    const name = path.split('/').pop() ?? path
+    const parts = name.split('.')
+    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
+  }
+
+  // Resolve a projection config for a file extension.
+  function getProjectionForExtension(extension: string): ProjectionConfig | null {
+    const lookup = PROJECTION_BY_LANGUAGE as Record<string, ProjectionConfig | undefined>
+    return lookup[extension] ?? null
+  }
+
+  // Resolve a projection config for a supported language.
+  function getProjectionForLanguage(language: ProjectionLanguage): ProjectionConfig {
+    return PROJECTION_BY_LANGUAGE[language]
   }
 
   // Format a file path into a readable label.
-  function formatSampleLabel(path: string): string {
+  function formatSampleLabel(path: string, extension: string): string {
     const name = path.split('/').pop() ?? path
-    return `Sample: ${name.replace(/\.[^.]+$/, '')}`
+    const stem = name.replace(/\.[^.]+$/, '')
+    return `Sample: ${stem} (${extension})`
   }
 
   // Build sample options from the discovered file list.
   function buildSampleOptions(): SampleOption[] {
     return Object.keys(sampleContent)
       .sort((a, b) => a.localeCompare(b))
-      .map((path) => ({
-        label: formatSampleLabel(path),
-        value: path,
-        language: getSampleLanguage(path)
-      }))
+      .map((path) => {
+        const extension = getFileExtension(path)
+        const projection = getProjectionForExtension(extension)
+        return {
+          label: formatSampleLabel(path, extension || 'unknown'),
+          value: path,
+          extension,
+          language: projection?.language ?? null,
+          supported: Boolean(projection)
+        }
+      })
   }
 
   const SAMPLE_OPTIONS = buildSampleOptions()
+  const LANGUAGE_OPTIONS = buildLanguageOptions(SAMPLE_OPTIONS)
+  const DEFAULT_LANGUAGE = pickDefaultLanguage(LANGUAGE_OPTIONS, 'svelte')
 
   const { activePath = null } = $props<{
     activePath?: number[] | null
@@ -150,12 +210,12 @@
     provide: (field) => EditorView.decorations.from(field)
   })
 
-  const initial = createInitialState()
+  const initial = createInitialState(getProjectionForLanguage(DEFAULT_LANGUAGE).project(''))
   tokPaths = initial.tokPaths
   let editorState = $state<StructuralEditorState>(initial.state)
   let sourceError = $state<string | null>(null)
-  let sourceText = $state(initial.state.projectionText)
-  let sourceLanguage = $state<SourceLanguage>('svelte')
+  let sourceText = $state('')
+  let sourceLanguage = $state<ProjectionLanguage>(DEFAULT_LANGUAGE)
   let selectedSample = $state(DEFAULT_SAMPLE_OPTION)
 
   // Expose editor state for devtools debugging.
@@ -205,9 +265,71 @@
     }
   }
 
-  const filteredSamples = $derived(
-    SAMPLE_OPTIONS.filter((option) => option.language === sourceLanguage)
-  )
+  // Build language options from sample extensions.
+  function buildLanguageOptions(samples: SampleOption[]): LanguageOption[] {
+    const seen = new Set<string>()
+    const options: LanguageOption[] = []
+    for (const sample of samples) {
+      if (seen.has(sample.extension)) continue
+      seen.add(sample.extension)
+      const projection = getProjectionForExtension(sample.extension)
+      if (projection) {
+        options.push({
+          id: projection.language,
+          label: projection.label,
+          extension: sample.extension,
+          language: projection.language,
+          supported: true
+        })
+      } else {
+        const label = sample.extension ? sample.extension.toUpperCase() : 'Unknown'
+        options.push({
+          id: `ext:${sample.extension || 'unknown'}`,
+          label,
+          extension: sample.extension,
+          language: null,
+          supported: false
+        })
+      }
+    }
+    return options.sort((a, b) => a.label.localeCompare(b.label))
+  }
+
+  // Pick the default language from the supported options.
+  function pickDefaultLanguage(
+    options: LanguageOption[],
+    fallback: ProjectionLanguage
+  ): ProjectionLanguage {
+    const preferred = options.find(
+      (option) => option.supported && option.language === fallback
+    )
+    if (preferred?.language) return preferred.language
+    const supported = options.find(
+      (option) => option.supported && option.language
+    )
+    return supported?.language ?? fallback
+  }
+
+  // Guard that a string is a supported projection language.
+  function isProjectionLanguage(value: string): value is ProjectionLanguage {
+    return value in PROJECTION_BY_LANGUAGE
+  }
+
+  // Normalize a language against the available sample extensions.
+  function normalizeLanguage(language: ProjectionLanguage): ProjectionLanguage {
+    const supported = LANGUAGE_OPTIONS.some(
+      (option) => option.supported && option.language === language
+    )
+    return supported ? language : DEFAULT_LANGUAGE
+  }
+
+  // Handle language selector updates safely.
+  function handleLanguageChange(event: Event): void {
+    const select = event.currentTarget as HTMLSelectElement
+    const option = LANGUAGE_OPTIONS.find((item) => item.id === select.value)
+    if (!option?.supported || !option.language) return
+    updateLanguage(option.language)
+  }
 
   function persistSelection(): void {
     try {
@@ -232,7 +354,8 @@
 
   $effect(() => {
     if (!selectedSample) return
-    if (filteredSamples.some((option) => option.value === selectedSample)) return
+    const match = SAMPLE_OPTIONS.find((option) => option.value === selectedSample)
+    if (match?.supported) return
     selectedSample = DEFAULT_SAMPLE_OPTION
   })
 
@@ -264,14 +387,7 @@
   // Parse source and sync the structural editor tree.
   function applySource(source: string) {
     try {
-      const nextRoot =
-        sourceLanguage === 'svelte'
-          ? susySvelteProjection(source)
-          : sourceLanguage === 'ts'
-            ? susyTsProjection(source)
-            : sourceLanguage === 'yaml'
-              ? susyYamlProjection(source)
-              : susyJsProjection(source)
+      const nextRoot = getProjectionForLanguage(sourceLanguage).project(source)
       const baseState: StructuralEditorState = {
         ...editorState,
         mode: 'normal',
@@ -291,16 +407,16 @@
       sourceError =
         error instanceof Error
           ? error.message
-          : `Invalid ${LANGUAGE_LABELS[sourceLanguage]} source.`
+          : `Invalid ${getProjectionForLanguage(sourceLanguage).label} source.`
     }
   }
 
   // Find the shortest sample for the selected language.
-  function findShortestSample(language: SourceLanguage): SampleOption | null {
+  function findShortestSample(language: ProjectionLanguage): SampleOption | null {
     let best: SampleOption | null = null
     let bestLength = Number.POSITIVE_INFINITY
     for (const option of SAMPLE_OPTIONS) {
-      if (option.language !== language) continue
+      if (!option.supported || option.language !== language) continue
       const content = sampleContent[option.value] ?? ''
       if (content.length >= bestLength) continue
       best = option
@@ -310,7 +426,7 @@
   }
 
   // Update the parser when the language changes.
-  function updateLanguage(nextLanguage: SourceLanguage) {
+  function updateLanguage(nextLanguage: ProjectionLanguage) {
     sourceLanguage = nextLanguage
     sourceError = null
     const shortestSample = findShortestSample(nextLanguage)
@@ -343,7 +459,7 @@
 
   // Read persisted selection from local storage.
   function readPersistedSelection(): {
-    language: SourceLanguage
+    language: ProjectionLanguage
     sample: string
   } | null {
     try {
@@ -354,12 +470,7 @@
       const record = parsed as { language?: string; sample?: string }
       const language = record.language
       const sample = record.sample
-      if (
-        language !== 'svelte' &&
-        language !== 'js' &&
-        language !== 'ts' &&
-        language !== 'yaml'
-      ) {
+      if (typeof language !== 'string' || !isProjectionLanguage(language)) {
         return null
       }
       return {
@@ -379,7 +490,7 @@
       return
     }
     const selection = SAMPLE_OPTIONS.find((option) => option.value === value)
-    if (!selection) return
+    if (!selection || !selection.supported || !selection.language) return
     sourceLanguage = selection.language
     sourceError = null
     loadSampleFile(selection.value)
@@ -431,10 +542,13 @@
   onMount(() => {
     const persisted = readPersistedSelection()
     if (persisted) {
-      sourceLanguage = persisted.language
-      if (persisted.sample && sampleContent[persisted.sample]) {
-        selectedSample = persisted.sample
-        sourceText = sampleContent[persisted.sample]
+      sourceLanguage = normalizeLanguage(persisted.language)
+      if (persisted.sample) {
+        const sample = SAMPLE_OPTIONS.find((option) => option.value === persisted.sample)
+        if (sample?.supported && sampleContent[persisted.sample]) {
+          selectedSample = persisted.sample
+          sourceText = sampleContent[persisted.sample]
+        }
       }
     }
 
@@ -642,28 +756,39 @@
           <span class="sr-only">Language</span>
           <select
             class="rounded-md border border-surface-700/70 bg-surface-900/70 px-2 py-1 text-xs text-surface-100"
-            onchange={(event) =>
-              updateLanguage((event.currentTarget as HTMLSelectElement).value as SourceLanguage)}
+            onchange={handleLanguageChange}
             value={sourceLanguage}
           >
-            <option value="svelte">{LANGUAGE_LABELS.svelte}</option>
-            <option value="js">{LANGUAGE_LABELS.js}</option>
-            <option value="ts">{LANGUAGE_LABELS.ts}</option>
-            <option value="yaml">{LANGUAGE_LABELS.yaml}</option>
+            {#each LANGUAGE_OPTIONS as option}
+              <option
+                value={option.id}
+                disabled={!option.supported}
+                class={option.supported ? 'text-surface-100' : 'text-surface-500'}
+              >
+                {option.label}
+              </option>
+            {/each}
           </select>
         </label>
         <label class="text-xs uppercase tracking-[0.2em] text-surface-400">
           <span class="sr-only">Sample</span>
           <select
             class="rounded-md border border-surface-700/70 bg-surface-900/70 px-2 py-1 text-xs text-surface-100"
-            onchange={() => selectSample(selectedSample)}
+            onchange={(event) =>
+              selectSample((event.currentTarget as HTMLSelectElement).value)}
             bind:value={selectedSample}
           >
             <option value={DEFAULT_SAMPLE_OPTION}>
-              Select {LANGUAGE_LABELS[sourceLanguage]} sample…
+              Select {getProjectionForLanguage(sourceLanguage).label} sample…
             </option>
-            {#each filteredSamples as option}
-              <option value={option.value}>{option.label}</option>
+            {#each SAMPLE_OPTIONS as option}
+              <option
+                value={option.value}
+                disabled={!option.supported}
+                class={option.supported ? 'text-surface-100' : 'text-surface-500'}
+              >
+                {option.label}
+              </option>
             {/each}
           </select>
         </label>

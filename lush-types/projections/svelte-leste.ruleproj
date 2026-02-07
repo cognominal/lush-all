@@ -1,0 +1,26 @@
+rule ElementBlock
+  match
+    type: Element
+    name: $name
+    children: $kids
+    where: blockTag($name)
+  emit
+    line: tag($name)
+    block
+      each: $kids
+
+rule ElementInline
+  match
+    type: Element
+    name: $name
+    children: $kids
+    where: inlineTag($name)
+  emit
+    line: inlineTag($name, $kids)
+
+rule Text
+  match
+    type: Text
+    data: $text
+  emit
+    line: text($text)

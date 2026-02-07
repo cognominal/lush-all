@@ -4,7 +4,7 @@
 
 `StructuralEditor` renders the structural editor UI and manages the
 CodeMirror view, selection, and breadcrumb updates for the sample
-structural tree.
+projection.
 
 ## Usage
 
@@ -18,8 +18,10 @@ structural tree.
 
 ## Behavior
 
-- Initializes a sample tree using `createSampleJsTree` and projects it
-  into the editor view.
+- Projects the current source text into a Susy tree and renders the
+  projection in the structural view.
+- Derives language options from sample file extensions.
+- Disables samples that do not have a matching projection.
 - Drives CodeMirror state updates for selection, decorations, and
   content sync.
 - Tracks the current structural path and token path to support normal

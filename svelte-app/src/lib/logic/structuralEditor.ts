@@ -6,7 +6,6 @@ import {
   type WidgetType
 } from '@codemirror/view'
 import {
-  createSampleJsTree,
   descendPath,
   findFirstTokPath,
   findNextTokPath,
@@ -49,9 +48,8 @@ type NodeKeyMap = Map<string, EventKeyMap>
 type EditorMode = StructuralEditorState['mode']
 type CursorCommandId = 'cursorLeft' | 'cursorRight' | 'cursorUp' | 'cursorDown'
 
-// Build the initial structural editor state from a sample JS tree.
-export function createInitialState(): ProjectionSnapshot {
-  const root = createSampleJsTree()
+// Build the initial structural editor state from a projected root.
+export function createInitialState(root: SusyNode): ProjectionSnapshot {
   const projection = projectTree(root)
   const tokPaths = projection.tokPaths
 

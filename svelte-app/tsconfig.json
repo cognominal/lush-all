@@ -2,7 +2,7 @@
   "extends": "./.svelte-kit/tsconfig.json",
   "compilerOptions": {
     "strict": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "bun-types"],
     "allowImportingTsExtensions": true,
     "skipLibCheck": true
   }

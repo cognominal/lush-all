@@ -22,6 +22,17 @@ The rule engine takes:
 
 Rules are ordered. The first matching rule wins.
 
+## Naming and Embedding
+
+`kt` is a combined key in the form `KindName.TypeName`, joined by a dot.
+A single AST node
+can be embedded in multiple contexts and take on different `kt` values,
+including double embedding (e.g., a TypeScript variable embedded in an
+augmented YAML Astre, itself embedded in an augmented Acorn Astre).
+
+This DSL is also edited as a projection, so string literals are naked by
+default and do not require quotes.
+
 ## DSL Overview
 
 The DSL is indentation-based and uses `rule`, `match`, and `emit`.
@@ -32,7 +43,7 @@ Example:
 ```
 rule ElementBlock
   match
-    kind: "Element"
+    kt: "Svelte.Element"
     name: $name
     attrs: $attrs
     kids: $kids
@@ -50,7 +61,7 @@ Rule header:
 ```
 rule RuleName
   match
-    kind: "KindName"
+    kt: "KindName.TypeName"
     field: $capture
     where: predicate($capture)
   emit
@@ -90,7 +101,7 @@ Example:
 ```
 rule IfBlock
   match
-    kind: "If"
+    kt: "Ts.If"
     test: $test
     then: $then
     else: $else
@@ -142,7 +153,7 @@ Inline elements render a single line with inlined children:
 ```
 rule ElementInline
   match
-    kind: "Element"
+    kt: "Svelte.Element"
     name: $name
     attrs: $attrs
     kids: $kids
@@ -157,7 +168,7 @@ No closing tag is emitted.
 ```
 rule ElementBlock
   match
-    kind: "Element"
+    kt: "Svelte.Element"
     name: $name
     attrs: $attrs
     kids: $kids
@@ -172,7 +183,7 @@ rule ElementBlock
 ```
 rule Text
   match
-    kind: "Text"
+    kt: "Svelte.Text"
     value: $value
   emit
     line: $value
@@ -183,7 +194,7 @@ rule Text
 ```
 rule IfBlock
   match
-    kind: "IfBlock"
+    kt: "Svelte.IfBlock"
     test: $test
     then: $then
     else: $else
@@ -203,7 +214,7 @@ If you want braces removed as well, use a second projection profile:
 ```
 rule IfBlockNoBraces
   match
-    kind: "IfBlock"
+    kt: "Svelte.IfBlock"
     test: $test
     then: $then
     else: $else
@@ -224,7 +235,7 @@ Script blocks use indentation instead of braces for TypeScript.
 ```
 rule ScriptBlock
   match
-    kind: "Script"
+    kt: "Svelte.Script"
     lang: $lang
     body: $body
   emit
@@ -236,7 +247,7 @@ rule ScriptBlock
 ```
 rule TsBlock
   match
-    kind: "Block"
+    kt: "Ts.Block"
     kids: $kids
   emit
     block
@@ -246,7 +257,7 @@ rule TsBlock
 ```
 rule TsIf
   match
-    kind: "TsIf"
+    kt: "Ts.If"
     test: $test
     then: $then
     else: $else

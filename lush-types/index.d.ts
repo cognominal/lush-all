@@ -56,7 +56,13 @@ export type YamlAstType =
   | 'Scalar'
   | 'Alias'
 
-export type BuiltinTokenKind = 'Lush' | 'YAML' | 'jq' | 'js' | 'svelte'
+export type BuiltinTokenKind =
+  | 'Lush'
+  | 'YAML'
+  | 'jq'
+  | 'js'
+  | 'svelte'
+  | 'leste'
 export type BuiltinTokenType =
   | YamlTokenType
   | YamlAstType
@@ -75,6 +81,7 @@ export function hasTokenKind(name: TokenKindName): boolean
 export function hasTokenType(name: TokenTypeName): boolean
 export function hasTokenKindType(name: TokenKindTypeName): boolean
 export function registerYamlTokenTypes(): void
+export function registerLesteTokenTypes(): void
 
 export type CompletionTokenKind =
   | 'Folder'
@@ -171,6 +178,13 @@ export function susySvelteProjection(
   filename?: string
 ): SusyNode
 
+export function susySvelteLesteProjection(
+  source: string,
+  ruleproj: string
+): SusyNode
+
+export function susyRuleprojProjection(source: string): SusyNode
+
 export function susyJsProjection(
   source: string,
   filename?: string
@@ -182,6 +196,24 @@ export function susyTsProjection(
 ): SusyNode
 
 export function susyYamlProjection(source: string): SusyNode
+
+export type RuleprojRule = {
+  name: string
+  match: {
+    type?: { kind: 'literal'; value: string } | { kind: 'capture'; name: string }
+    name?: { kind: 'literal'; value: string } | { kind: 'capture'; name: string }
+    data?: { kind: 'literal'; value: string } | { kind: 'capture'; name: string }
+    children?: { kind: 'literal'; value: string } | { kind: 'capture'; name: string }
+    where?:
+      | { kind: 'inlineTag'; arg: string }
+      | { kind: 'blockTag'; arg: string }
+  }
+  emit:
+    | { kind: 'line'; line: { kind: 'tag' | 'text'; arg: string } | { kind: 'inlineTag'; name: string; kids: string } }
+    | { kind: 'block'; line: { kind: 'tag' | 'text'; arg: string } | { kind: 'inlineTag'; name: string; kids: string }; each: string }
+}
+
+export function parseRuleproj(text: string): RuleprojRule[]
 
 export type Span = {
   from: number
