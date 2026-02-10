@@ -14,6 +14,11 @@ const config = {
       '@lush/yaml': '../yaml/src/index.ts',
       '@lush/structural': '../svelte-codemirror/src'
     }
+  },
+  vitePlugin: {
+    inspector: {
+      toggleKeyCombo: 'alt-x'
+    }
   }
 }
 
