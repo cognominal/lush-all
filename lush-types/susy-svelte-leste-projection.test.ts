@@ -38,4 +38,15 @@ describe('susySvelteLesteProjection', () => {
       expect(allowed.has(type)).toBe(true)
     }
   })
+
+  test('projects attributes into leste tag modifiers', () => {
+    const ruleproj = readFileSync(
+      new URL('./projections/svelte-leste.ruleproj', import.meta.url),
+      'utf8'
+    )
+    const source = '<h1 id="the-id" class="class1 class2" data-foo="foo">Hello</h1>'
+    const root = susySvelteLesteProjection(source, ruleproj)
+    const projection = projectTree(root)
+    expect(projection.text).toBe('h1 #the-id .class1 .class2 data-foo=foo Hello')
+  })
 })

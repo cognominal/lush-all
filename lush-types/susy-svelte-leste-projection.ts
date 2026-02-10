@@ -8,7 +8,13 @@ type AstreNode = {
   type: string
   name?: string
   data?: string
+  attrs?: AstreAttr[]
   children?: AstreNode[]
+}
+
+type AstreAttr = {
+  name: string
+  value: string
 }
 
 type CaptureMap = Record<string, unknown>
@@ -37,10 +43,11 @@ function normalizeSvelteNode(node: unknown): AstreNode | null {
   if (typeof type !== 'string') return null
   if (type === 'Element') {
     const name = typeof node.name === 'string' ? node.name : undefined
+    const attrs = normalizeSvelteAttributes(node.attributes)
     const children = Array.isArray(node.children)
       ? node.children.map(normalizeSvelteNode).filter(Boolean)
       : []
-    return { type, name, children: children as AstreNode[] }
+    return { type, name, attrs, children: children as AstreNode[] }
   }
   if (type === 'Text') {
     const data = typeof node.data === 'string' ? node.data : ''
@@ -53,6 +60,39 @@ function normalizeSvelteNode(node: unknown): AstreNode | null {
     return { type, children: children as AstreNode[] }
   }
   return null
+}
+
+// Normalize a Svelte attribute list into simple name/value pairs.
+function normalizeSvelteAttributes(attributes: unknown): AstreAttr[] {
+  if (!Array.isArray(attributes)) return []
+  return attributes
+    .map((attr) => normalizeSvelteAttribute(attr))
+    .filter((attr): attr is AstreAttr => attr !== null)
+}
+
+// Normalize a single Svelte attribute node.
+function normalizeSvelteAttribute(attribute: unknown): AstreAttr | null {
+  if (!isObject(attribute)) return null
+  if (attribute.type !== 'Attribute') return null
+  const name = typeof attribute.name === 'string' ? attribute.name : ''
+  if (!name) return null
+  const value = normalizeAttributeValue(attribute.value)
+  return { name, value }
+}
+
+// Normalize Svelte attribute values into plain strings when possible.
+function normalizeAttributeValue(value: unknown): string {
+  if (value === true) return ''
+  if (typeof value === 'string') return value
+  if (!Array.isArray(value)) return ''
+  const parts = value
+    .map((chunk) => {
+      if (!isObject(chunk)) return ''
+      if (chunk.type !== 'Text') return ''
+      return typeof chunk.data === 'string' ? chunk.data : ''
+    })
+    .filter((chunk) => chunk.length > 0)
+  return parts.join('')
 }
 
 // Extract the HTML fragment from a Svelte parse result.
@@ -128,6 +168,7 @@ function matchRule(rule: RuleprojRule, node: AstreNode): CaptureMap | null {
   if (!matchValue(node.type, match.type)) return null
   if (!matchValue(node.name, match.name)) return null
   if (!matchValue(node.data, match.data)) return null
+  if (!matchValue(node.attrs, match.attrs)) return null
   if (!matchValue(node.children, match.children)) return null
   if (match.where) {
     const arg = captures[match.where.arg]
@@ -138,6 +179,36 @@ function matchRule(rule: RuleprojRule, node: AstreNode): CaptureMap | null {
     if (!ok) return null
   }
   return captures
+}
+
+// Render attributes into leste tokens.
+function renderAttrTokens(attrs: AstreAttr[]): LesteLine {
+  const tokens: LesteLine = []
+  const addToken = (text: string) => {
+    if (!text) return
+    if (tokens.length > 0) tokens.push(makeSpace(' '))
+    tokens.push(makeNaked(text))
+  }
+  attrs.forEach((attr) => {
+    if (attr.name === 'id') {
+      const idValue = normalizeText(attr.value)
+      if (idValue) addToken(`#${idValue}`)
+      return
+    }
+    if (attr.name === 'class') {
+      const classValue = normalizeText(attr.value)
+      if (!classValue) return
+      classValue.split(' ').forEach((klass) => addToken(`.${klass}`))
+      return
+    }
+    const rawValue = normalizeText(attr.value)
+    if (!rawValue) {
+      addToken(attr.name)
+      return
+    }
+    addToken(`${attr.name}=${rawValue}`)
+  })
+  return tokens
 }
 
 // Render a single emit expression into tokens.
@@ -153,6 +224,26 @@ function renderEmitExpr(
   if (expr.kind === 'text') {
     const value = String(captures[expr.arg] ?? '')
     return renderTextTokens(value)
+  }
+  if (expr.kind === 'tagWithAttrs') {
+    const name = String(captures[expr.name] ?? '')
+    const attrs = (captures[expr.attrs] ?? []) as AstreAttr[]
+    const tokens: LesteLine = []
+    if (name) tokens.push(makeTag(name))
+    appendTokens(tokens, renderAttrTokens(attrs))
+    return tokens
+  }
+  if (expr.kind === 'inlineTagWithAttrs') {
+    const name = String(captures[expr.name] ?? '')
+    const attrs = (captures[expr.attrs] ?? []) as AstreAttr[]
+    const kids = (captures[expr.kids] ?? []) as AstreNode[]
+    const tokens: LesteLine = []
+    if (name) tokens.push(makeTag(name))
+    appendTokens(tokens, renderAttrTokens(attrs))
+    const inlineKids = renderInlineKids(kids, rules)
+    appendTokens(tokens, inlineKids)
+    if (name) appendTokens(tokens, [makeTag(`/${name}`)])
+    return tokens
   }
   const name = String(captures[expr.name] ?? '')
   const kids = (captures[expr.kids] ?? []) as AstreNode[]
@@ -199,6 +290,12 @@ function renderNode(node: AstreNode, rules?: RuleprojRule[]): LesteLines {
     const kids = (captures[rule.emit.each] ?? []) as AstreNode[]
     const body = renderInlineKids(kids, ruleSet)
     if (body.length === 0) return [header]
+    const hasTag = body.some((token) => token.type === 'tag')
+    if (!hasTag) {
+      const merged = [...header]
+      appendTokens(merged, body)
+      return [merged]
+    }
     return [header, [makeSpace('  '), ...body]]
   }
   if (Array.isArray(node.children)) {

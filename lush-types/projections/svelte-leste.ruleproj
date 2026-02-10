@@ -2,10 +2,11 @@ rule ElementBlock
   match
     type: Element
     name: $name
+    attrs: $attrs
     children: $kids
     where: blockTag($name)
   emit
-    line: tag($name)
+    line: tagWithAttrs($name, $attrs)
     block
       each: $kids
 
@@ -13,10 +14,11 @@ rule ElementInline
   match
     type: Element
     name: $name
+    attrs: $attrs
     children: $kids
     where: inlineTag($name)
   emit
-    line: inlineTag($name, $kids)
+    line: inlineTagWithAttrs($name, $attrs, $kids)
 
 rule Text
   match
