@@ -9,7 +9,8 @@
 - Use `bun test` for tests; do not add new Jest tests.
 - Each time you add code, run `bun test`. Each time you add tests, run
   `bun test` after adding them.
-- Builds must be clean: no errors and no warnings.
+- Builds must be clean: no errors and no warnings. Fix warnings when they
+  appear.
 - For Markdown, ensure blank lines around headings and lists to avoid nvim
   lint errors.
 - When creating or modifying `.md` files, normalize blank lines around
@@ -27,6 +28,7 @@
 - When necessary access code from `~/git/sveltejs--svelte` for the svelte
   compiler or ``~/git/sveltejs-svelte.dev`` for codes examples using svelte i/o
 = Use tailwind css for new code.
+- Commit messages should include details in the body by default.
 
 ## Acting on prompt
 
