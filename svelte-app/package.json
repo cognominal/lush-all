@@ -16,6 +16,9 @@
   },
   "dependencies": {
     "@codemirror/lang-yaml": "^6.1.2",
+    "@codemirror/language": "^6.10.2",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.12",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@rich_harris/svelte-split-pane": "^2.0.0",
     "@sveltejs/kit": "^2.8.0",
