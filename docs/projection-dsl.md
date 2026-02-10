@@ -1,6 +1,7 @@
 # Projection DSL (Indent Blocks)
 
-This document defines an indentation-first projection DSL for Susy
+This document defines an indentation-first projection DSL that describes
+how to generated ts code for Susy posh
 projections. This DSL is rule based, so the suffix is `.ruleproj`.
 It is designed for block structures, with inline structures
 remaining single-line. It targets projectional editing, not parsing.
@@ -8,18 +9,23 @@ remaining single-line. It targets projectional editing, not parsing.
 ## Projection Definition
 
 A projection maps an Astre (augmented syntax tree) into a Susy
-representation suitable for editing. It is a structured, reversible
-view, not a parser. It does not change the underlying Astre.
+representation suitable for editing with lushed, which keeps that
+astre in sync. Susy projections can target different surface syntaxes
+(leste, yaml, etc.), not only leste. It is a structured, reversible
+view, not a parser.
+The point of lushed is to let the user interact with a posh projection
+and keep the corresponding astre in sync, without parsing.
 
 Should we call this “astral projection” in docs and UI? If we do,
 we should use it consistently and avoid mixing terms.
 
-## Goals
+## Goals and means
 
 - Define projections as data, not ad-hoc functions.
 - Use indentation as syntax for blocks, without explicit open or close tokens.
 - Keep inline structures single-line and brace-free.
 - Support quote and unquote style templating without full macros.
+- The NakedString SusyNode type and its posh representation avoid to quote strings
 - Be language-agnostic, then specialize with per-language rule sets.
 
 ## Core Model
@@ -46,6 +52,7 @@ default and do not require quotes.
 ## Ruleproj to TypeScript
 
 `.ruleproj` files are turned into TypeScript by a small compiler.
+But see the [dog food plan](#ruleproj-dogfood-plan) to do the same from the susy.
 Today the pipeline is:
 
 1. `parseRuleproj` tokenizes and parses the DSL into rule objects.
@@ -82,6 +89,19 @@ The compiler is intentionally small and explicit: it maps DSL `match`
 fields to structured predicates and maps `emit` expressions to token
 builders. This keeps the generated code easy to inspect and adjust.
 
+## Current DSL Support
+
+The current ruleproj parser supports:
+
+- Match fields: `type`, `name`, `data`, `attrs`, `children`, `where`.
+- Where predicates: `inlineTag($name)`, `blockTag($name)`.
+- Emit expressions: `tag($name)`.
+- Emit expressions: `text($text)`.
+- Emit expressions: `inlineTag($name, $kids)`.
+- Emit expressions: `tagWithAttrs($name, $attrs)`.
+- Emit expressions: `inlineTagWithAttrs($name, $attrs, $kids)`.
+- Emit blocks: `line:` with optional `block` and `each:` for lists.
+
 ## Ruleproj Dogfood Plan
 
 We want to use `.ruleproj` to generate the code that parses `.ruleproj`
@@ -103,9 +123,21 @@ graph TD
   A[".ruleproj"] -->|parse| B["ruleproj Astre"]
   B -->|serialize| C[".ruleproj.yaml"]
   B -->|project| D["Susy projection"]
+  D -->|lushed update| L((lushed))
+  L -->|apply edits| B
   A -->|compile| E["ruleproj2.ts"]
   E -->|parse| B
 ```
+
+## Current Svelte Wiring
+
+The Svelte editor now prefers a `.ruleproj`-driven projection when one
+is available. The legacy `susySvelteProjection` code path is kept as a
+fallback when no ruleproj text is present.
+
+The default rule set is loaded from:
+
+- `/Users/cog/mine/lush-all/svelte-app/src/lib/samples/svelte-leste.ruleproj`
 
 ## DSL Overview
 

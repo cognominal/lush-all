@@ -9,8 +9,8 @@ Sample files live in:
 ## How Samples Are Loaded
 
 `StructuralEditor` scans the samples folder with a `glob` that matches
-`*.svelte`, `*.js`, `*.ts`, `*.yaml`, and `*.ruleproj`. Each file
-becomes an option in the sample picker.
+`*.svelte`, `*.js`, `*.ts`, `*.yaml`, `*.ruleproj`, and `*.leste`. Each
+file becomes an option in the sample picker.
 
 ## How Languages Are Listed
 
