@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import {
+    Compartment,
     EditorState,
     StateEffect,
     StateField,
@@ -18,12 +19,14 @@
     isSusyTok,
     parseHighlightYaml,
     serializePath,
+    type HighlightMap,
     type SusyNode,
     type StructuralEditorState
   } from '@lush/structural'
   import {
     susyJsProjection,
     susyRuleprojProjection,
+    susySvelteLesteProjection,
     susySvelteProjection,
     susyTsProjection,
     susyYamlProjection
@@ -83,6 +86,7 @@
   }
 
   const DEFAULT_SAMPLE_OPTION = ''
+  const DEFAULT_RULEPROJ_SAMPLE = 'svelte-leste.ruleproj'
   const STORAGE_KEY = 'lush.editor.selection'
 
   type SampleOption = {
@@ -102,7 +106,7 @@
   }
 
   const sampleContent = import.meta.glob<string>(
-    '../samples/*.{svelte,js,ts,yaml,ruleproj}',
+    '../samples/*.{svelte,js,ts,yaml,ruleproj,leste}',
     {
       eager: true,
       query: '?raw',
@@ -156,9 +160,20 @@
   const LANGUAGE_OPTIONS = buildLanguageOptions(SAMPLE_OPTIONS)
   const DEFAULT_LANGUAGE = pickDefaultLanguage(LANGUAGE_OPTIONS, 'svelte')
 
-  const { activePath = null } = $props<{
+  // Find the default ruleproj sample path if it exists.
+  function findRuleprojSamplePath(): string | null {
+    const match = SAMPLE_OPTIONS.find((option) =>
+      option.value.endsWith(DEFAULT_RULEPROJ_SAMPLE)
+    )
+    return match?.value ?? null
+  }
+
+  const props = $props<{
     activePath?: number[] | null
+    onFocusPath?: (path: number[]) => void
   }>()
+  const onFocusPath = $derived(props.onFocusPath)
+  let activePath = $state<number[] | null>(props.activePath ?? null)
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -173,7 +188,19 @@
     focusPath: number[]
   }>()
 
-  const highlightRegistry = createHighlightRegistry(parseHighlightYaml(highlightRaw))
+  const highlightTheme = new Compartment()
+  let highlightYamlText = $state(highlightRaw)
+  const highlightMap = $derived(parseHighlightYaml(highlightYamlText))
+  const highlightRegistry = $derived(createHighlightRegistry(highlightMap))
+  let highlightKey = $state<string | null>(null)
+  let highlightLine = $state('')
+  let highlightDraft = $state('')
+  let highlightInput: HTMLInputElement | null = null
+  let highlightFocused = $state(false)
+  let highlightError = $state<string | null>(null)
+  let highlightSaving = $state(false)
+  let highlightSaveTimer: ReturnType<typeof setTimeout> | null = null
+  let lastFocusKey: string | null = null
 
   class FocusWidget extends WidgetType {
     // Render a placeholder span when focus would be empty.
@@ -217,6 +244,7 @@
   let sourceText = $state('')
   let sourceLanguage = $state<ProjectionLanguage>(DEFAULT_LANGUAGE)
   let selectedSample = $state(DEFAULT_SAMPLE_OPTION)
+  let ruleprojText = $state<string | null>(null)
 
   // Expose editor state for devtools debugging.
   function updateDebugState(next: StructuralEditorState, nextTokPaths: number[][]) {
@@ -342,11 +370,18 @@
     }
   }
 
+  // Persist selection once the editor mounts.
   $effect(() => {
     if (!isMounted) return
     persistSelection()
   })
 
+  // Keep the highlight input synced to the current token.
+  $effect(() => {
+    refreshHighlightForState(editorState)
+  })
+
+  // Reconfigure highlight theme when the yaml changes.
   $effect(() => {
     updateDebugState(editorState, tokPaths)
     updateDebugControls(view)
@@ -359,6 +394,20 @@
     selectedSample = DEFAULT_SAMPLE_OPTION
   })
 
+  $effect(() => {
+    activePath = props.activePath ?? null
+    if (import.meta.env.DEV) {
+      const target = window as Window & { __structuralEditorPropsActivePath?: number[] | null }
+      target.__structuralEditorPropsActivePath = props.activePath ?? null
+    }
+  })
+
+  $effect(() => {
+    if (!import.meta.env.DEV) return
+    const target = window as Window & { __structuralEditorActivePath?: number[] | null }
+    target.__structuralEditorActivePath = activePath
+  })
+
   // Emit updates whenever the root node changes.
   $effect(() => {
     if (editorState.root === lastRoot) return
@@ -367,8 +416,44 @@
   })
 
   // Dispatch focus updates when the current token changes.
+  $effect(() => {
+    const nextKey = serializePath(editorState.currentTokPath)
+    if (nextKey === lastFocusKey) return
+    lastFocusKey = nextKey
+    dispatchFocusPath(editorState)
+  })
+
+  // Dispatch focus updates when the current token changes.
   function dispatchFocusPath(next: StructuralEditorState): void {
-    dispatch('focusPath', next.currentTokPath)
+    const nextPath = [...next.currentTokPath]
+    if (import.meta.env.DEV) {
+      const target = window as Window & {
+        __structuralEditorDispatchedPath?: number[]
+        __structuralEditorHasOnFocusPath?: boolean
+      }
+      target.__structuralEditorDispatchedPath = nextPath
+      target.__structuralEditorHasOnFocusPath = Boolean(onFocusPath)
+    }
+    onFocusPath?.(nextPath)
+    dispatch('focusPath', nextPath)
+  }
+
+  // Apply an external focus request from the workspace.
+  export function setActivePath(nextPath: number[] | null): void {
+    if (!nextPath) return
+    const currentKey = serializePath(editorState.currentTokPath)
+    const nextKey = serializePath(nextPath)
+    if (currentKey === nextKey) return
+    if (!getNodeByPath(editorState.root, nextPath)) return
+    applyState(
+      {
+        ...editorState,
+        currentPath: nextPath,
+        currentTokPath: nextPath,
+        cursorOffset: 0
+      },
+      false
+    )
   }
 
   // Sync state and view changes through shared logic.
@@ -380,6 +465,7 @@
       highlightRegistry,
       focusWidget
     )
+    refreshHighlightForState(editorState)
     updateDebugState(editorState, tokPaths)
     if (emitFocus) dispatchFocusPath(editorState)
   }
@@ -387,7 +473,10 @@
   // Parse source and sync the structural editor tree.
   function applySource(source: string) {
     try {
-      const nextRoot = getProjectionForLanguage(sourceLanguage).project(source)
+      const nextRoot =
+        sourceLanguage === 'svelte' && ruleprojText
+          ? susySvelteLesteProjection(source, ruleprojText)
+          : getProjectionForLanguage(sourceLanguage).project(source)
       const baseState: StructuralEditorState = {
         ...editorState,
         mode: 'normal',
@@ -523,12 +612,15 @@
     ) {
       return
     }
-    editorState = {
+    const nextState: StructuralEditorState = {
       ...editorState,
       currentPath: path,
       currentTokPath: inputPath,
       cursorOffset: nextOffset
     }
+    editorState = nextState
+    refreshHighlightForState(nextState)
+    dispatchFocusPath(nextState)
   })
 
   // Update the structural editor when source edits occur.
@@ -549,6 +641,13 @@
           selectedSample = persisted.sample
           sourceText = sampleContent[persisted.sample]
         }
+      }
+    }
+
+    if (!ruleprojText) {
+      const ruleprojPath = findRuleprojSamplePath()
+      if (ruleprojPath) {
+        ruleprojText = sampleContent[ruleprojPath] ?? null
       }
     }
 
@@ -633,7 +732,7 @@
           }),
           updateListener,
           decorationsField,
-          EditorView.theme(highlightRegistry.themeSpec),
+          highlightTheme.of(EditorView.theme(highlightRegistry.themeSpec)),
           EditorView.theme({
             '&': {
               height: '100%',
@@ -716,6 +815,16 @@
     )
   })
 
+  $effect(() => {
+    if (!view) return
+    view.dispatch({
+      effects: highlightTheme.reconfigure(
+        EditorView.theme(highlightRegistry.themeSpec)
+      )
+    })
+    applyState(editorState, false)
+  })
+
   // Blur the editor when the mode badge is clicked.
   function blurOnClick() {
     view?.dom.blur()
@@ -727,6 +836,150 @@
       event.preventDefault()
       view?.dom.blur()
     }
+  }
+
+  // Resolve the highlight key for the current node.
+  // Resolve the highlight key for the current node.
+  function resolveHighlightKey(
+    map: HighlightMap,
+    node: SusyNode | null | undefined
+  ): string | null {
+    if (!node) return null
+    const kind = node.kind.toLowerCase()
+    const type = node.type.toLowerCase()
+    const exact = `${kind}.${type}`
+    if (map.has(exact)) return exact
+    const kindOnly = `${kind}.*`
+    if (map.has(kindOnly)) return kindOnly
+    const typeOnly = `*.${type}`
+    if (map.has(typeOnly)) return typeOnly
+    return null
+  }
+
+  // Format a highlight line for display.
+  // Format the highlight line for display.
+  function formatHighlightLine(map: HighlightMap, key: string | null): string {
+    if (!key) return ''
+    const value = map.get(key)
+    if (!value) return ''
+    return `${key}: ${value}`
+  }
+
+  // Parse a highlight line into a key/value pair.
+  // Parse a highlight line into a key/value pair.
+  function parseHighlightLine(
+    line: string,
+    fallbackKey: string | null
+  ): { key: string; value: string } | null {
+    const trimmed = line.trim()
+    if (!trimmed) return null
+    const colonIndex = trimmed.indexOf(':')
+    if (colonIndex === -1) {
+      if (!fallbackKey) return null
+      return { key: fallbackKey, value: trimmed }
+    }
+    const key = trimmed.slice(0, colonIndex).trim().toLowerCase()
+    const value = trimmed.slice(colonIndex + 1).trim()
+    if (!key) return null
+    return { key, value }
+  }
+
+  // Serialize highlight entries with alphabetized keys.
+  // Serialize highlight entries with alphabetized keys.
+  function serializeHighlightYaml(map: HighlightMap): string {
+    const entries = Array.from(map.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    )
+    if (entries.length === 0) return ''
+    return `${entries.map(([key, value]) => `${key}: ${value}`).join('\n')}\n`
+  }
+
+  // Sync the highlight input with the current token.
+  // Keep the draft in sync with the selected token.
+  function syncHighlightDraft(nextLine: string) {
+    highlightLine = nextLine
+    highlightDraft = nextLine
+    if (highlightInput && highlightInput.value !== nextLine) {
+      highlightInput.value = nextLine
+    }
+    highlightError = null
+    if (highlightSaveTimer) {
+      clearTimeout(highlightSaveTimer)
+      highlightSaveTimer = null
+    }
+  }
+
+  // Refresh highlight state for the provided editor snapshot.
+  function refreshHighlightForState(nextState: StructuralEditorState) {
+    const node = getNodeByPath(nextState.root, nextState.currentTokPath)
+    const nextKey = resolveHighlightKey(highlightMap, node)
+    highlightKey = nextKey
+    syncHighlightDraft(formatHighlightLine(highlightMap, nextKey))
+  }
+
+  // Persist the updated highlight line to disk.
+  // Persist the updated highlight line to disk.
+  async function saveHighlightLine(nextLine: string) {
+    highlightError = null
+    const update = parseHighlightLine(nextLine, highlightKey)
+    if (!update) {
+      highlightError = 'Enter a highlight entry like "kind.type: style".'
+      return
+    }
+    const nextMap = new Map(highlightMap)
+    if (update.value) {
+      nextMap.set(update.key, update.value)
+    } else {
+      nextMap.delete(update.key)
+    }
+    const nextYaml = serializeHighlightYaml(nextMap)
+    highlightYamlText = nextYaml
+    syncHighlightDraft(formatHighlightLine(nextMap, update.key))
+    highlightSaving = true
+    try {
+      const response = await fetch('/api/highlight', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(update)
+      })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Failed to save highlight.')
+      }
+    } catch (error) {
+      highlightError =
+        error instanceof Error ? error.message : 'Failed to save highlight.'
+    } finally {
+      highlightSaving = false
+    }
+  }
+
+  // Track highlight focus state.
+  // Track highlight focus state.
+  function handleHighlightFocus() {
+    highlightFocused = true
+  }
+
+  // Apply highlight changes when the input blurs.
+  // Apply highlight changes when the input blurs.
+  function handleHighlightBlur() {
+    highlightFocused = false
+    if (highlightSaveTimer) {
+      clearTimeout(highlightSaveTimer)
+      highlightSaveTimer = null
+    }
+    if (highlightDraft === highlightLine) return
+    void saveHighlightLine(highlightDraft)
+  }
+
+  // Save highlight line after a short debounce while typing.
+  function handleHighlightInput() {
+    if (highlightSaveTimer) clearTimeout(highlightSaveTimer)
+    highlightSaveTimer = setTimeout(() => {
+      highlightSaveTimer = null
+      if (highlightDraft === highlightLine) return
+      void saveHighlightLine(highlightDraft)
+    }, 250)
   }
 </script>
 
@@ -744,6 +997,34 @@
     >
       Mode: <span class="font-semibold text-surface-100">{editorState.mode}</span>
     </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
+        Highlight
+      </div>
+      {#if highlightSaving}
+        <div class="text-[11px] uppercase tracking-[0.2em] text-surface-400">
+          Saving
+        </div>
+      {/if}
+    </div>
+    <div class="flex items-center gap-2">
+      <input
+        class="w-full rounded-md border border-surface-700/70 bg-surface-900/70 px-3 py-2 text-xs text-surface-100 placeholder:text-surface-500"
+        type="text"
+        placeholder="No highlight match"
+        bind:this={highlightInput}
+        bind:value={highlightDraft}
+        onfocus={handleHighlightFocus}
+        oninput={handleHighlightInput}
+        onblur={handleHighlightBlur}
+      />
+    </div>
+    {#if highlightError}
+      <div class="text-xs text-amber-300">{highlightError}</div>
+    {/if}
   </div>
 
   <div class="flex flex-col gap-2">

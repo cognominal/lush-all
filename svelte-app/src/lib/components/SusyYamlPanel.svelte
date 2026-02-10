@@ -28,17 +28,18 @@
   } from 'lush-types'
   import { serializePath } from '@lush/structural'
 
-  const {
-    root = null,
-    indexer = '',
-    filterKeys = '',
-    activePath = null
-  } = $props<{
+  const props = $props<{
     root?: SusyNode | null
     indexer?: string
     filterKeys?: string
     activePath?: number[] | null
+    onFocusPath?: (path: number[]) => void
   }>()
+  const root = $derived(props.root ?? null)
+  const indexer = $derived(props.indexer ?? '')
+  const filterKeys = $derived(props.filterKeys ?? '')
+  const onFocusPath = $derived(props.onFocusPath)
+  let activePath = $state<number[] | null>(props.activePath ?? null)
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -292,7 +293,9 @@
               if (pos == null) return false
               const path = findSusyYamlPathAtPos(spansByPath, pos)
               if (!path) return false
-              dispatch('focusPath', path)
+              const nextPath = [...path]
+              onFocusPath?.(nextPath)
+              dispatch('focusPath', nextPath)
               return false
             }
           }),
@@ -360,6 +363,12 @@
   })
 
   $effect(() => {
+    activePath = props.activePath ?? null
+  })
+
+  $effect(() => {
+    activePath
+    spansByPath
     syncHighlight()
   })
 
