@@ -6,6 +6,7 @@ type MatchSpec = {
   type?: MatchValue
   name?: MatchValue
   data?: MatchValue
+  attrs?: MatchValue
   children?: MatchValue
   where?: WherePredicate
 }
@@ -18,6 +19,8 @@ export type EmitExpr =
   | { kind: 'tag'; arg: string }
   | { kind: 'text'; arg: string }
   | { kind: 'inlineTag'; name: string; kids: string }
+  | { kind: 'tagWithAttrs'; name: string; attrs: string }
+  | { kind: 'inlineTagWithAttrs'; name: string; attrs: string; kids: string }
 
 type EmitSpec =
   | { kind: 'line'; line: EmitExpr }
@@ -64,6 +67,7 @@ function parseEmitExpr(value: string): EmitExpr {
     throw new Error(`Unsupported emit expression: ${value}`)
   }
   const name = callMatch[1]
+  const normalizedName = name.toLowerCase()
   const args = callMatch[2]
     .split(',')
     .map((arg) => arg.trim())
@@ -75,17 +79,32 @@ function parseEmitExpr(value: string): EmitExpr {
     }
     return arg.slice(1)
   }
-  if (name === 'tag') {
+  if (normalizedName === 'tag') {
     return { kind: 'tag', arg: capture(args[0] ?? '') }
   }
-  if (name === 'text') {
+  if (normalizedName === 'text') {
     return { kind: 'text', arg: capture(args[0] ?? '') }
   }
-  if (name === 'inlineTag') {
+  if (normalizedName === 'inlinetag') {
     return {
       kind: 'inlineTag',
       name: capture(args[0] ?? ''),
       kids: capture(args[1] ?? '')
+    }
+  }
+  if (normalizedName === 'tagwithattrs') {
+    return {
+      kind: 'tagWithAttrs',
+      name: capture(args[0] ?? ''),
+      attrs: capture(args[1] ?? '')
+    }
+  }
+  if (normalizedName === 'inlinetagwithattrs') {
+    return {
+      kind: 'inlineTagWithAttrs',
+      name: capture(args[0] ?? ''),
+      attrs: capture(args[1] ?? ''),
+      kids: capture(args[2] ?? '')
     }
   }
   throw new Error(`Unknown emit function: ${name}`)
@@ -155,6 +174,8 @@ export function parseRuleproj(text: string): RuleprojRule[] {
         currentRule.match.name = parseMatchValue(value)
       } else if (key === 'data') {
         currentRule.match.data = parseMatchValue(value)
+      } else if (key === 'attrs') {
+        currentRule.match.attrs = parseMatchValue(value)
       } else if (key === 'children') {
         currentRule.match.children = parseMatchValue(value)
       }
