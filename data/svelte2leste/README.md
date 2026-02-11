@@ -10,7 +10,7 @@ An astre is an augmented syntax tree.
 A posh susy is a lean user editable representation.
 A susy is posh if it uses font style as syntax.
 Poshification renders a `Multiline` using the highlight YAML
-(`svelte-codemirror/src/highlight.yaml`).
+(`svelte-codemirror/src/themes/default.yaml`).
 Here the astre is the Svelte compiler AST (an augmented Acorn AST).
 
 We can explore this AST by going in the svelte.dev playground at 

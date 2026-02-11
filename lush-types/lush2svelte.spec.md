@@ -33,7 +33,7 @@ export function lush2svelte(lush: SusyEd) { ... } // REVIEW
 
 - Leste is a "posh" variant of Lush.
 - Poshification is the rendering of a `SusyEd` using the highlight YAML (REVIEW)
-  file (`svelte-codemirror/src/highlight.yaml`).
+  file (`svelte-codemirror/src/themes/default.yaml`).
 - This function currently focuses on the poshification of HTML attributes.
 - For a Svelte HTML attribute with name `id`, emit a `SusyNode` of kind
   `lush` and type `id`.

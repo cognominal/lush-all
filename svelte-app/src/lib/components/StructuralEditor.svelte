@@ -23,7 +23,7 @@
     type SusyNode,
     type StructuralEditorState
   } from '@lush/structural'
-  import highlightRaw from '@lush/structural/highlight.yaml?raw'
+  import highlightRaw from '@lush/structural/themes/default.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import HighlightEditor from '$lib/components/HighlightEditor.svelte'
   import {
@@ -75,6 +75,9 @@
   let highlightYamlText = $state(highlightRaw)
   const highlightMap = $derived(parseHighlightYaml(highlightYamlText))
   const highlightRegistry = $derived(createHighlightRegistry(highlightMap))
+  const DEFAULT_THEME_NAME = 'default'
+  let highlightThemeName = $state(DEFAULT_THEME_NAME)
+  let highlightThemes = $state<string[]>([])
   let highlightKey = $state<string | null>(null)
   let highlightLine = $state('')
   let highlightError = $state<string | null>(null)
@@ -340,6 +343,49 @@
     if (emitFocus) dispatchFocusPath(nextState)
   }
 
+  // Load the available highlight themes from the server.
+  async function loadThemes() {
+    try {
+      const response = await fetch('/api/themes')
+      if (!response.ok) return
+      const data = (await response.json()) as { themes?: string[] }
+      const themes = data.themes ?? []
+      highlightThemes = themes
+      const preferred = themes.includes(DEFAULT_THEME_NAME)
+        ? DEFAULT_THEME_NAME
+        : themes[0] ?? DEFAULT_THEME_NAME
+      await loadTheme(preferred)
+    } catch {
+      // ignore theme load errors
+    }
+  }
+
+  // Load a highlight theme YAML payload by name.
+  async function loadTheme(themeName: string) {
+    highlightThemeName = themeName
+    try {
+      const response = await fetch(
+        `/api/themes?name=${encodeURIComponent(themeName)}`
+      )
+      if (!response.ok) return
+      const data = (await response.json()) as { yaml?: string }
+      if (typeof data.yaml === 'string') {
+        highlightYamlText = data.yaml
+        refreshHighlightForState(editorState)
+        scheduleHighlightThemeRefresh()
+      }
+    } catch {
+      // ignore theme load errors
+    }
+  }
+
+  // Handle theme selection changes from the dropdown.
+  function handleThemeChange(event: Event): void {
+    const select = event.currentTarget as HTMLSelectElement
+    if (!select.value) return
+    void loadTheme(select.value)
+  }
+
   // Parse source and sync the structural editor tree.
   function applySource(source: string) {
     try {
@@ -464,6 +510,8 @@
 
   // Initialize the editor view on mount.
   onMount(() => {
+    void loadThemes()
+
     const persisted = readPersistedSelection()
     if (persisted) {
       sourceLanguage = normalizeLanguage(
@@ -782,7 +830,7 @@
       const response = await fetch('/api/highlight', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(update)
+        body: JSON.stringify({ ...update, theme: highlightThemeName })
       })
       if (!response.ok) {
         const text = await response.text()
@@ -823,19 +871,36 @@
   </div>
 
   <div class="flex flex-col gap-2">
-    <div class="flex items-center justify-between">
-      <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
-        Highlight
+    <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
+      Highlight
+    </div>
+    <div class="flex items-start gap-3">
+      <label class="text-xs uppercase tracking-[0.25em] text-surface-400">
+        <span class="sr-only">Theme</span>
+        <select
+          class="rounded-md border border-surface-700/70 bg-surface-900/70 px-2 py-1 text-xs text-surface-100"
+          onchange={handleThemeChange}
+          value={highlightThemeName}
+        >
+          {#if highlightThemes.length === 0}
+            <option value={highlightThemeName}>{highlightThemeName}</option>
+          {/if}
+          {#each highlightThemes as theme}
+            <option value={theme}>{theme}</option>
+          {/each}
+        </select>
+      </label>
+      <div class="flex-1">
+        <HighlightEditor
+          bind:this={highlightEditorRef}
+          value={highlightLine}
+          saving={highlightSaving}
+          error={highlightError}
+          restoreToken={highlightRestoreToken}
+          onCommit={handleHighlightCommit}
+        />
       </div>
     </div>
-    <HighlightEditor
-      bind:this={highlightEditorRef}
-      value={highlightLine}
-      saving={highlightSaving}
-      error={highlightError}
-      restoreToken={highlightRestoreToken}
-      onCommit={handleHighlightCommit}
-    />
   </div>
 
   <div class="flex flex-col gap-2">

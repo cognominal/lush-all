@@ -2,18 +2,17 @@ import type { RequestHandler } from '@sveltejs/kit'
 import { json } from '@sveltejs/kit'
 import { parse } from '../../../../../yaml/src/index.ts'
 import { readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import {
+  ensureThemeFile,
+  ensureThemesDir,
+  getThemePath,
+  normalizeThemeName
+} from '$lib/server/themes'
 
 type HighlightUpdate = {
   key: string
   value: string
-}
-
-// Resolve the repo-relative highlight YAML file path.
-function getHighlightPath(): string {
-  const repoRoot = fileURLToPath(new URL('../../../../..', import.meta.url))
-  return path.join(repoRoot, 'svelte-codemirror', 'src', 'highlight.yaml')
+  theme: string
 }
 
 // Normalize incoming highlight keys for consistency.
@@ -47,7 +46,8 @@ function parseHighlightUpdate(body: unknown): HighlightUpdate | null {
   if (!body || typeof body !== 'object') return null
   const record = body as Partial<HighlightUpdate>
   if (typeof record.key !== 'string' || typeof record.value !== 'string') return null
-  return { key: record.key, value: record.value }
+  if (typeof record.theme !== 'string') return null
+  return { key: record.key, value: record.value, theme: record.theme }
 }
 
 // Persist highlight updates to the shared YAML file.
@@ -68,7 +68,13 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: 'Highlight key is required.' }, { status: 400 })
   }
 
-  const highlightPath = getHighlightPath()
+  await ensureThemesDir()
+  const themeName = normalizeThemeName(payload.theme) || 'default'
+  const hasTheme = await ensureThemeFile(themeName)
+  if (!hasTheme) {
+    return json({ error: 'Theme not found.' }, { status: 404 })
+  }
+  const highlightPath = getThemePath(themeName)
   const currentText = await readFile(highlightPath, 'utf8')
   const map = parseHighlightYaml(currentText)
   if (payload.value.trim()) {
