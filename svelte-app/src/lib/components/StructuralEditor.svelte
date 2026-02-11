@@ -25,6 +25,7 @@
   } from '@lush/structural'
   import highlightRaw from '@lush/structural/highlight.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
+  import HighlightEditor from '$lib/components/HighlightEditor.svelte'
   import {
     buildBreadcrumbs,
     clamp,
@@ -76,13 +77,29 @@
   const highlightRegistry = $derived(createHighlightRegistry(highlightMap))
   let highlightKey = $state<string | null>(null)
   let highlightLine = $state('')
-  let highlightDraft = $state('')
-  let highlightInput: HTMLInputElement | null = null
-  let highlightFocused = $state(false)
   let highlightError = $state<string | null>(null)
   let highlightSaving = $state(false)
-  let highlightSaveTimer: ReturnType<typeof setTimeout> | null = null
+  let highlightThemeTimer: ReturnType<typeof setTimeout> | null = null
+  let highlightEditorRef = $state<{ focus: () => void } | null>(null)
+  let highlightRestoreToken = $state(0)
   let lastFocusKey: string | null = null
+
+  // List of supported highlight style tokens.
+  const VALID_HIGHLIGHT_TOKENS = new Set([
+    'bold',
+    'italic',
+    'underline',
+    'blue',
+    'red',
+    'green',
+    'yellow',
+    'gray',
+    'grey',
+    'cyan',
+    'magenta',
+    'white',
+    'black'
+  ])
 
   class FocusWidget extends WidgetType {
     // Render a placeholder span when focus would be empty.
@@ -622,20 +639,7 @@
   })
 
   $effect(() => {
-    if (!view) return
-    view.dispatch({
-      effects: highlightTheme.reconfigure(
-        EditorView.theme(highlightRegistry.themeSpec)
-      )
-    })
-    syncView(
-      view,
-      editorState,
-      setDecorations,
-      highlightRegistry,
-      focusWidget
-    )
-    updateDebugState(editorState, tokPaths)
+    scheduleHighlightThemeRefresh()
   })
 
   // Blur the editor when the mode badge is clicked.
@@ -680,21 +684,25 @@
 
   // Parse a highlight line into a key/value pair.
   // Parse a highlight line into a key/value pair.
-  function parseHighlightLine(
-    line: string,
-    fallbackKey: string | null
-  ): { key: string; value: string } | null {
+  function parseHighlightLine(line: string): { key: string; value: string } | null {
     const trimmed = line.trim()
     if (!trimmed) return null
     const colonIndex = trimmed.indexOf(':')
-    if (colonIndex === -1) {
-      if (!fallbackKey) return null
-      return { key: fallbackKey, value: trimmed }
-    }
+    if (colonIndex === -1) return null
     const key = trimmed.slice(0, colonIndex).trim().toLowerCase()
     const value = trimmed.slice(colonIndex + 1).trim()
     if (!key) return null
+    if (!value) return null
     return { key, value }
+  }
+
+  // Validate a style chain against known highlight tokens.
+  function isValidHighlightStyle(value: string): boolean {
+    const rawParts = value.split('.')
+    if (rawParts.some((part) => part.trim() === '')) return false
+    const parts = rawParts.map((part) => part.trim().toLowerCase())
+    if (parts.length === 0) return false
+    return parts.every((part) => VALID_HIGHLIGHT_TOKENS.has(part))
   }
 
   // Serialize highlight entries with alphabetized keys.
@@ -707,47 +715,68 @@
     return `${entries.map(([key, value]) => `${key}: ${value}`).join('\n')}\n`
   }
 
-  // Sync the highlight input with the current token.
-  // Keep the draft in sync with the selected token.
-  function syncHighlightDraft(nextLine: string) {
+  // Sync the highlight line with the selected token.
+  function syncHighlightLine(nextLine: string) {
     highlightLine = nextLine
-    highlightDraft = nextLine
-    if (highlightInput && highlightInput.value !== nextLine) {
-      highlightInput.value = nextLine
-    }
     highlightError = null
-    if (highlightSaveTimer) {
-      clearTimeout(highlightSaveTimer)
-      highlightSaveTimer = null
-    }
   }
 
+  // Refresh highlight state for the provided editor snapshot.
   // Refresh highlight state for the provided editor snapshot.
   function refreshHighlightForState(nextState: StructuralEditorState) {
     const node = getNodeByPath(nextState.root, nextState.currentTokPath)
     const nextKey = resolveHighlightKey(highlightMap, node)
     highlightKey = nextKey
-    syncHighlightDraft(formatHighlightLine(highlightMap, nextKey))
+    syncHighlightLine(formatHighlightLine(highlightMap, nextKey))
+  }
+
+  // Debounce highlight theme updates to avoid input jank.
+  function scheduleHighlightThemeRefresh() {
+    if (!view) return
+    if (highlightThemeTimer) {
+      clearTimeout(highlightThemeTimer)
+      highlightThemeTimer = null
+    }
+    highlightThemeTimer = setTimeout(() => {
+      highlightThemeTimer = null
+      view?.dispatch({
+        effects: highlightTheme.reconfigure(
+          EditorView.theme(highlightRegistry.themeSpec)
+        )
+      })
+      if (!view) return
+      syncView(
+        view,
+        editorState,
+        setDecorations,
+        highlightRegistry,
+        focusWidget
+      )
+      updateDebugState(editorState, tokPaths)
+    }, 120)
   }
 
   // Persist the updated highlight line to disk.
   // Persist the updated highlight line to disk.
+  // Persist the updated highlight line to disk.
   async function saveHighlightLine(nextLine: string) {
     highlightError = null
-    const update = parseHighlightLine(nextLine, highlightKey)
+    const update = parseHighlightLine(nextLine)
     if (!update) {
       highlightError = 'Enter a highlight entry like "kind.type: style".'
       return
     }
-    const nextMap = new Map(highlightMap)
-    if (update.value) {
-      nextMap.set(update.key, update.value)
-    } else {
-      nextMap.delete(update.key)
+    if (!highlightKey || update.key !== highlightKey) {
+      highlightError = 'Highlight key must match the selected token.'
+      return
     }
+    if (!isValidHighlightStyle(update.value)) {
+      highlightError = 'Style must use known tokens like "blue.bold.underline".'
+      return
+    }
+    const nextMap = new Map(highlightMap)
+    nextMap.set(update.key, update.value)
     const nextYaml = serializeHighlightYaml(nextMap)
-    highlightYamlText = nextYaml
-    syncHighlightDraft(formatHighlightLine(nextMap, update.key))
     highlightSaving = true
     try {
       const response = await fetch('/api/highlight', {
@@ -759,6 +788,10 @@
         const text = await response.text()
         throw new Error(text || 'Failed to save highlight.')
       }
+      highlightYamlText = nextYaml
+      syncHighlightLine(formatHighlightLine(nextMap, update.key))
+      scheduleHighlightThemeRefresh()
+      highlightRestoreToken += 1
     } catch (error) {
       highlightError =
         error instanceof Error ? error.message : 'Failed to save highlight.'
@@ -767,32 +800,9 @@
     }
   }
 
-  // Track highlight focus state.
-  // Track highlight focus state.
-  function handleHighlightFocus() {
-    highlightFocused = true
-  }
-
-  // Apply highlight changes when the input blurs.
-  // Apply highlight changes when the input blurs.
-  function handleHighlightBlur() {
-    highlightFocused = false
-    if (highlightSaveTimer) {
-      clearTimeout(highlightSaveTimer)
-      highlightSaveTimer = null
-    }
-    if (highlightDraft === highlightLine) return
-    void saveHighlightLine(highlightDraft)
-  }
-
-  // Save highlight line after a short debounce while typing.
-  function handleHighlightInput() {
-    if (highlightSaveTimer) clearTimeout(highlightSaveTimer)
-    highlightSaveTimer = setTimeout(() => {
-      highlightSaveTimer = null
-      if (highlightDraft === highlightLine) return
-      void saveHighlightLine(highlightDraft)
-    }, 250)
+  // Handle highlight editor commits.
+  function handleHighlightCommit(nextLine: string) {
+    void saveHighlightLine(nextLine)
   }
 </script>
 
@@ -817,27 +827,15 @@
       <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
         Highlight
       </div>
-      {#if highlightSaving}
-        <div class="text-[11px] uppercase tracking-[0.2em] text-surface-400">
-          Saving
-        </div>
-      {/if}
     </div>
-    <div class="flex items-center gap-2">
-      <input
-        class="w-full rounded-md border border-surface-700/70 bg-surface-900/70 px-3 py-2 text-xs text-surface-100 placeholder:text-surface-500"
-        type="text"
-        placeholder="No highlight match"
-        bind:this={highlightInput}
-        bind:value={highlightDraft}
-        onfocus={handleHighlightFocus}
-        oninput={handleHighlightInput}
-        onblur={handleHighlightBlur}
-      />
-    </div>
-    {#if highlightError}
-      <div class="text-xs text-amber-300">{highlightError}</div>
-    {/if}
+    <HighlightEditor
+      bind:this={highlightEditorRef}
+      value={highlightLine}
+      saving={highlightSaving}
+      error={highlightError}
+      restoreToken={highlightRestoreToken}
+      onCommit={handleHighlightCommit}
+    />
   </div>
 
   <div class="flex flex-col gap-2">
