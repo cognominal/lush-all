@@ -37,6 +37,7 @@
     handleKey,
     rebuildProjection,
     resolveInsertTarget,
+    parsePathKey,
     setStateAndSync,
     syncView,
     type BreadcrumbItem
@@ -686,6 +687,26 @@
     crumbs = buildBreadcrumbs(editorState, editorState.currentPath)
   })
 
+  // Apply breadcrumb selection by path and sync focus across panels.
+  function handleBreadcrumbSelect(value: string): void {
+    const nextPath = parsePathKey(value)
+    if (!nextPath) return
+    const nextKey = serializePath(nextPath)
+    const currentKey = serializePath(editorState.currentPath)
+    if (nextKey === currentKey) return
+    if (!getNodeByPath(editorState.root, nextPath)) return
+    const span = getSpan(editorState, nextPath)
+    const range = span ? getTextRange(span) : null
+    const nextCursorOffset =
+      editorState.mode === 'normal' ? range?.from ?? editorState.cursorOffset : 0
+    applyState({
+      ...editorState,
+      currentPath: nextPath,
+      currentTokPath: nextPath,
+      cursorOffset: nextCursorOffset
+    })
+  }
+
   $effect(() => {
     scheduleHighlightThemeRefresh()
   })
@@ -965,7 +986,7 @@
     <div class="h-full min-h-0" bind:this={host}></div>
   </div>
 
-  <BreadcrumbBar items={crumbs} />
+  <BreadcrumbBar items={crumbs} onSelect={handleBreadcrumbSelect} />
 
   <div class="text-xs text-surface-400">
     Normal mode keys: i, Tab, Shift+Tab, Enter. Insert mode: Esc, printable

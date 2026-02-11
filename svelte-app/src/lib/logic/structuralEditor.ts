@@ -28,6 +28,7 @@ type ProjectionSnapshot = {
 export type BreadcrumbItem = {
   type: string
   range: { from: number; to: number } | null
+  value?: string
 }
 
 export type KeyHandlerResult = {
@@ -94,7 +95,8 @@ export function buildBreadcrumbs(
   const rootSpan = state.spansByPath.get(serializePath([]))
   items.push({
     type: `${current.kind}.${current.type}`,
-    range: rootSpan ? { from: rootSpan.from, to: rootSpan.to } : null
+    range: rootSpan ? { from: rootSpan.from, to: rootSpan.to } : null,
+    value: serializePath([])
   })
   for (const idx of path) {
     current = current?.kids?.[idx]
@@ -103,7 +105,8 @@ export function buildBreadcrumbs(
     const span = state.spansByPath.get(serializePath(currentPath))
     items.push({
       type: `${current.kind}.${current.type}`,
-      range: span ? { from: span.from, to: span.to } : null
+      range: span ? { from: span.from, to: span.to } : null,
+      value: serializePath(currentPath)
     })
   }
   return items
