@@ -132,9 +132,11 @@ function appendTokens(line: LesteLine, tokens: LesteLine): void {
   }
   const last = line[line.length - 1]
   const first = tokens[0]
+  const hasTag = last.type === 'tag' || first.type === 'tag'
   const needsSpace =
     last.type !== SPACE_TYPE &&
     first.type !== SPACE_TYPE &&
+    !hasTag &&
     !last.text.endsWith('\n') &&
     !first.text.startsWith('\n')
   if (needsSpace) line.push(makeSpace(' '))

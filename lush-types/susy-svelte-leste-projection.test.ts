@@ -22,7 +22,7 @@ describe('susySvelteLesteProjection', () => {
     const source = '<h1>&lt;<b>bold</b>sample text</h1>'
     const root = susySvelteLesteProjection(source, ruleproj)
     const projection = projectTree(root)
-    expect(projection.text).toBe('h1\n  < b bold /b sample text')
+    expect(projection.text).toBe('h1\n  <bbold/bsample text')
   })
 
   test('uses NakedString for text, Space for whitespace, and tag for tags', () => {
@@ -47,6 +47,6 @@ describe('susySvelteLesteProjection', () => {
     const source = '<h1 id="the-id" class="class1 class2" data-foo="foo">Hello</h1>'
     const root = susySvelteLesteProjection(source, ruleproj)
     const projection = projectTree(root)
-    expect(projection.text).toBe('h1 #the-id .class1 .class2 data-foo=foo Hello')
+    expect(projection.text).toBe('h1#the-id .class1 .class2 data-foo=foo Hello')
   })
 })
