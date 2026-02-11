@@ -5,11 +5,10 @@ TBD: I have already a glossary to be merged.
 TBD: thinking of format for better access from the GUI.
 
 This glossary defines the technical vocabulary used in the **Lush** project.
-Each term is marked as **standard** or **Lush-specific**, and Lush-specific terms are explicitly related to accepted terminology where relevant.
+Each term is marked as **standard** or **Lush-specific**, and Lush-specific
+terms are explicitly related to accepted terminology where relevant.
 
 ## Pipe  — *Lush-specific*
-
-
 
 ---
 
