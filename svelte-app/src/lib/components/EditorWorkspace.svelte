@@ -11,9 +11,9 @@
   let filterKeys = $state(DEFAULT_FILTER_KEYS)
   let activePath = $state<number[] | null>(null)
   let focusPathCount = $state(0)
-  let structuralEditorRef: {
+  let structuralEditorRef = $state<{
     setActivePath?: (path: number[] | null) => void
-  } | null = null
+  } | null>(null)
 
   // Expose the active path for devtools diagnostics.
   function updateDebugActivePath(nextPath: number[] | null): void {
@@ -21,20 +21,40 @@
     const target = window as Window & {
       __editorWorkspaceActivePath?: number[] | null
       __editorWorkspaceFocusPathCount?: number
+      __editorWorkspaceHasStructuralRef?: boolean
+      __editorWorkspaceFocusSource?: string
     }
     target.__editorWorkspaceActivePath = nextPath
     target.__editorWorkspaceFocusPathCount = focusPathCount
+    target.__editorWorkspaceHasStructuralRef = Boolean(structuralEditorRef?.setActivePath)
   }
 
   // Update the shared focus path for both panels.
-  function handleFocusPath(path: number[]): void {
-    const nextKey = serializePath(path)
+  function applyFocusPath(path: number[], source: string, syncStructural: boolean): void {
+    const nextPath = [...path]
+    const nextKey = serializePath(nextPath)
     const currentKey = activePath ? serializePath(activePath) : null
     if (currentKey === nextKey) return
-    activePath = path
+    activePath = nextPath
     focusPathCount += 1
+    if (import.meta.env.DEV) {
+      const target = window as Window & { __editorWorkspaceFocusSource?: string }
+      target.__editorWorkspaceFocusSource = source
+    }
     updateDebugActivePath(activePath)
-    structuralEditorRef?.setActivePath?.(activePath)
+    if (syncStructural) {
+      structuralEditorRef?.setActivePath?.(activePath)
+    }
+  }
+
+  // Route focus changes coming from the structural editor.
+  function handleStructuralFocusPath(path: number[]): void {
+    applyFocusPath(path, 'structural', false)
+  }
+
+  // Route focus changes coming from the YAML panel.
+  function handleYamlFocusPath(path: number[]): void {
+    applyFocusPath(path, 'yaml', true)
   }
 
   $effect(() => {
@@ -46,9 +66,8 @@
   <div class="min-h-0 flex-1">
     <StructuralEditor
       bind:this={structuralEditorRef}
-      {activePath}
-      onFocusPath={handleFocusPath}
-      on:rootChange={(event) => (root = event.detail)}
+      onFocusPath={handleStructuralFocusPath}
+      onRootChange={(nextRoot) => (root = nextRoot)}
     />
   </div>
   <div class="min-h-0 flex flex-1 flex-col">
@@ -78,7 +97,7 @@
         {indexer}
         {activePath}
         filterKeys={filterKeys}
-        onFocusPath={handleFocusPath}
+        onFocusPath={handleYamlFocusPath}
       />
     </div>
   </div>

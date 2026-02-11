@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import {
     Compartment,
     EditorState,
@@ -28,18 +28,19 @@
   } from 'lush-types'
   import { serializePath } from '@lush/structural'
 
-  const props = $props<{
+  const {
+    root = null,
+    indexer = '',
+    filterKeys = '',
+    activePath = null,
+    onFocusPath
+  } = $props<{
     root?: SusyNode | null
     indexer?: string
     filterKeys?: string
     activePath?: number[] | null
     onFocusPath?: (path: number[]) => void
   }>()
-  const root = $derived(props.root ?? null)
-  const indexer = $derived(props.indexer ?? '')
-  const filterKeys = $derived(props.filterKeys ?? '')
-  const onFocusPath = $derived(props.onFocusPath)
-  let activePath = $state<number[] | null>(props.activePath ?? null)
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -49,8 +50,6 @@
   let blockHighlightEnabled = workspace
     .getConfiguration()
     .get('editor.blockSelectHighlight', true)
-
-  const dispatch = createEventDispatcher<{ focusPath: number[] }>()
 
   const emptyMessage = '# Susy projection will appear here.'
   const emptySelectionMessage = '# Indexer did not match any value.'
@@ -295,7 +294,6 @@
               if (!path) return false
               const nextPath = [...path]
               onFocusPath?.(nextPath)
-              dispatch('focusPath', nextPath)
               return false
             }
           }),
@@ -360,10 +358,6 @@
     yamlText = projection.text
     spansByPath = projection.spansByPath
     syncView(yamlText)
-  })
-
-  $effect(() => {
-    activePath = props.activePath ?? null
   })
 
   $effect(() => {

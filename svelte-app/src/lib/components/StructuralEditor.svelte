@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import {
     Compartment,
     EditorState,
@@ -23,14 +23,6 @@
     type SusyNode,
     type StructuralEditorState
   } from '@lush/structural'
-  import {
-    susyJsProjection,
-    susyRuleprojProjection,
-    susySvelteLesteProjection,
-    susySvelteProjection,
-    susyTsProjection,
-    susyYamlProjection
-  } from 'lush-types'
   import highlightRaw from '@lush/structural/highlight.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import {
@@ -48,132 +40,27 @@
     syncView,
     type BreadcrumbItem
   } from '$lib/logic/structuralEditor'
+  import {
+    DEFAULT_LANGUAGE,
+    DEFAULT_SAMPLE_OPTION,
+    LANGUAGE_OPTIONS,
+    SAMPLE_OPTIONS,
+    STORAGE_KEY,
+    findRuleprojSamplePath,
+    findShortestSample,
+    getProjectionForLanguage,
+    normalizeLanguage,
+    projectSource,
+    readPersistedSelection,
+    type ProjectionLanguage,
+    sampleContent
+  } from '$lib/logic/structuralEditorSamples'
 
-  type ProjectionLanguage = 'svelte' | 'js' | 'ts' | 'yaml' | 'ruleproj'
-
-  type ProjectionConfig = {
-    language: ProjectionLanguage
-    label: string
-    project: (source: string) => SusyNode
-  }
-
-  const PROJECTION_BY_LANGUAGE: Record<ProjectionLanguage, ProjectionConfig> = {
-    svelte: {
-      language: 'svelte',
-      label: 'Svelte',
-      project: susySvelteProjection
-    },
-    js: {
-      language: 'js',
-      label: 'JavaScript',
-      project: susyJsProjection
-    },
-    ts: {
-      language: 'ts',
-      label: 'TypeScript',
-      project: susyTsProjection
-    },
-    yaml: {
-      language: 'yaml',
-      label: 'YAML',
-      project: susyYamlProjection
-    },
-    ruleproj: {
-      language: 'ruleproj',
-      label: 'Ruleproj',
-      project: susyRuleprojProjection
-    }
-  }
-
-  const DEFAULT_SAMPLE_OPTION = ''
-  const DEFAULT_RULEPROJ_SAMPLE = 'svelte-leste.ruleproj'
-  const STORAGE_KEY = 'lush.editor.selection'
-
-  type SampleOption = {
-    label: string
-    value: string
-    extension: string
-    language: ProjectionLanguage | null
-    supported: boolean
-  }
-
-  type LanguageOption = {
-    id: string
-    label: string
-    extension: string
-    language: ProjectionLanguage | null
-    supported: boolean
-  }
-
-  const sampleContent = import.meta.glob<string>(
-    '../samples/*.{svelte,js,ts,yaml,ruleproj,leste}',
-    {
-      eager: true,
-      query: '?raw',
-      import: 'default'
-    }
-  )
-
-  // Read the file extension from a sample path.
-  function getFileExtension(path: string): string {
-    const name = path.split('/').pop() ?? path
-    const parts = name.split('.')
-    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
-  }
-
-  // Resolve a projection config for a file extension.
-  function getProjectionForExtension(extension: string): ProjectionConfig | null {
-    const lookup = PROJECTION_BY_LANGUAGE as Record<string, ProjectionConfig | undefined>
-    return lookup[extension] ?? null
-  }
-
-  // Resolve a projection config for a supported language.
-  function getProjectionForLanguage(language: ProjectionLanguage): ProjectionConfig {
-    return PROJECTION_BY_LANGUAGE[language]
-  }
-
-  // Format a file path into a readable label.
-  function formatSampleLabel(path: string, extension: string): string {
-    const name = path.split('/').pop() ?? path
-    const stem = name.replace(/\.[^.]+$/, '')
-    return `Sample: ${stem} (${extension})`
-  }
-
-  // Build sample options from the discovered file list.
-  function buildSampleOptions(): SampleOption[] {
-    return Object.keys(sampleContent)
-      .sort((a, b) => a.localeCompare(b))
-      .map((path) => {
-        const extension = getFileExtension(path)
-        const projection = getProjectionForExtension(extension)
-        return {
-          label: formatSampleLabel(path, extension || 'unknown'),
-          value: path,
-          extension,
-          language: projection?.language ?? null,
-          supported: Boolean(projection)
-        }
-      })
-  }
-
-  const SAMPLE_OPTIONS = buildSampleOptions()
-  const LANGUAGE_OPTIONS = buildLanguageOptions(SAMPLE_OPTIONS)
-  const DEFAULT_LANGUAGE = pickDefaultLanguage(LANGUAGE_OPTIONS, 'svelte')
-
-  // Find the default ruleproj sample path if it exists.
-  function findRuleprojSamplePath(): string | null {
-    const match = SAMPLE_OPTIONS.find((option) =>
-      option.value.endsWith(DEFAULT_RULEPROJ_SAMPLE)
-    )
-    return match?.value ?? null
-  }
-
-  const props = $props<{
-    activePath?: number[] | null
+  const { onFocusPath, onRootChange } = $props<{
     onFocusPath?: (path: number[]) => void
+    onRootChange?: (root: SusyNode) => void
   }>()
-  const onFocusPath = $derived(props.onFocusPath)
-  let activePath = $state<number[] | null>(props.activePath ?? null)
+  let activePath = $state<number[] | null>(null)
 
   let host: HTMLDivElement
   let view: EditorView | null = null
@@ -182,11 +69,6 @@
   let tokPaths: number[][] = []
   let lastRoot: SusyNode | null = null
   let isMounted = $state(false)
-
-  const dispatch = createEventDispatcher<{
-    rootChange: SusyNode
-    focusPath: number[]
-  }>()
 
   const highlightTheme = new Compartment()
   let highlightYamlText = $state(highlightRaw)
@@ -245,6 +127,11 @@
   let sourceLanguage = $state<ProjectionLanguage>(DEFAULT_LANGUAGE)
   let selectedSample = $state(DEFAULT_SAMPLE_OPTION)
   let ruleprojText = $state<string | null>(null)
+  const FILTERED_SAMPLE_OPTIONS = $derived(
+    SAMPLE_OPTIONS.filter(
+      (option) => option.supported && option.language === sourceLanguage
+    )
+  )
 
   // Expose editor state for devtools debugging.
   function updateDebugState(next: StructuralEditorState, nextTokPaths: number[][]) {
@@ -293,64 +180,6 @@
     }
   }
 
-  // Build language options from sample extensions.
-  function buildLanguageOptions(samples: SampleOption[]): LanguageOption[] {
-    const seen = new Set<string>()
-    const options: LanguageOption[] = []
-    for (const sample of samples) {
-      if (seen.has(sample.extension)) continue
-      seen.add(sample.extension)
-      const projection = getProjectionForExtension(sample.extension)
-      if (projection) {
-        options.push({
-          id: projection.language,
-          label: projection.label,
-          extension: sample.extension,
-          language: projection.language,
-          supported: true
-        })
-      } else {
-        const label = sample.extension ? sample.extension.toUpperCase() : 'Unknown'
-        options.push({
-          id: `ext:${sample.extension || 'unknown'}`,
-          label,
-          extension: sample.extension,
-          language: null,
-          supported: false
-        })
-      }
-    }
-    return options.sort((a, b) => a.label.localeCompare(b.label))
-  }
-
-  // Pick the default language from the supported options.
-  function pickDefaultLanguage(
-    options: LanguageOption[],
-    fallback: ProjectionLanguage
-  ): ProjectionLanguage {
-    const preferred = options.find(
-      (option) => option.supported && option.language === fallback
-    )
-    if (preferred?.language) return preferred.language
-    const supported = options.find(
-      (option) => option.supported && option.language
-    )
-    return supported?.language ?? fallback
-  }
-
-  // Guard that a string is a supported projection language.
-  function isProjectionLanguage(value: string): value is ProjectionLanguage {
-    return value in PROJECTION_BY_LANGUAGE
-  }
-
-  // Normalize a language against the available sample extensions.
-  function normalizeLanguage(language: ProjectionLanguage): ProjectionLanguage {
-    const supported = LANGUAGE_OPTIONS.some(
-      (option) => option.supported && option.language === language
-    )
-    return supported ? language : DEFAULT_LANGUAGE
-  }
-
   // Handle language selector updates safely.
   function handleLanguageChange(event: Event): void {
     const select = event.currentTarget as HTMLSelectElement
@@ -394,13 +223,14 @@
     selectedSample = DEFAULT_SAMPLE_OPTION
   })
 
+
   $effect(() => {
-    activePath = props.activePath ?? null
     if (import.meta.env.DEV) {
       const target = window as Window & { __structuralEditorPropsActivePath?: number[] | null }
-      target.__structuralEditorPropsActivePath = props.activePath ?? null
+      target.__structuralEditorPropsActivePath = activePath
     }
   })
+
 
   $effect(() => {
     if (!import.meta.env.DEV) return
@@ -412,7 +242,7 @@
   $effect(() => {
     if (editorState.root === lastRoot) return
     lastRoot = editorState.root
-    dispatch('rootChange', editorState.root)
+    onRootChange?.(editorState.root)
   })
 
   // Dispatch focus updates when the current token changes.
@@ -435,48 +265,68 @@
       target.__structuralEditorHasOnFocusPath = Boolean(onFocusPath)
     }
     onFocusPath?.(nextPath)
-    dispatch('focusPath', nextPath)
   }
 
   // Apply an external focus request from the workspace.
   export function setActivePath(nextPath: number[] | null): void {
     if (!nextPath) return
+    if (import.meta.env.DEV) {
+      const target = window as Window & {
+        __structuralEditorSetActivePathCalls?: number
+        __structuralEditorAfterSetActivePathTokPath?: number[]
+      }
+      target.__structuralEditorSetActivePathCalls =
+        (target.__structuralEditorSetActivePathCalls ?? 0) + 1
+    }
+    const nextActivePath = [...nextPath]
+    const nextKey = serializePath(nextActivePath)
     const currentKey = serializePath(editorState.currentTokPath)
-    const nextKey = serializePath(nextPath)
     if (currentKey === nextKey) return
-    if (!getNodeByPath(editorState.root, nextPath)) return
+    if (!getNodeByPath(editorState.root, nextActivePath)) return
+    const span = getSpan(editorState, nextActivePath)
+    const range = span ? getTextRange(span) : null
+    const nextCursorOffset = editorState.mode === 'normal' ? range?.from ?? 0 : 0
+    lastFocusKey = nextKey
+    activePath = nextActivePath
     applyState(
       {
         ...editorState,
-        currentPath: nextPath,
-        currentTokPath: nextPath,
-        cursorOffset: 0
+        currentPath: nextActivePath,
+        currentTokPath: nextActivePath,
+        cursorOffset: nextCursorOffset
       },
       false
     )
+    if (import.meta.env.DEV) {
+      const target = window as Window & {
+        __structuralEditorAfterSetActivePathTokPath?: number[]
+      }
+      target.__structuralEditorAfterSetActivePathTokPath = editorState.currentTokPath
+    }
   }
 
   // Sync state and view changes through shared logic.
   function applyState(next: StructuralEditorState, emitFocus = true) {
-    editorState = setStateAndSync(
+    const nextState = setStateAndSync(
       next,
       view,
       setDecorations,
       highlightRegistry,
       focusWidget
     )
-    refreshHighlightForState(editorState)
-    updateDebugState(editorState, tokPaths)
-    if (emitFocus) dispatchFocusPath(editorState)
+    const currentState = untrack(() => editorState)
+    if (nextState !== currentState) {
+      editorState = nextState
+    }
+    refreshHighlightForState(nextState)
+    updateDebugState(nextState, tokPaths)
+    if (emitFocus) dispatchFocusPath(nextState)
   }
 
   // Parse source and sync the structural editor tree.
   function applySource(source: string) {
     try {
-      const nextRoot =
-        sourceLanguage === 'svelte' && ruleprojText
-          ? susySvelteLesteProjection(source, ruleprojText)
-          : getProjectionForLanguage(sourceLanguage).project(source)
+      const nextRoot = projectSource(sourceLanguage, source, ruleprojText)
       const baseState: StructuralEditorState = {
         ...editorState,
         mode: 'normal',
@@ -500,25 +350,15 @@
     }
   }
 
-  // Find the shortest sample for the selected language.
-  function findShortestSample(language: ProjectionLanguage): SampleOption | null {
-    let best: SampleOption | null = null
-    let bestLength = Number.POSITIVE_INFINITY
-    for (const option of SAMPLE_OPTIONS) {
-      if (!option.supported || option.language !== language) continue
-      const content = sampleContent[option.value] ?? ''
-      if (content.length >= bestLength) continue
-      best = option
-      bestLength = content.length
-    }
-    return best
-  }
-
   // Update the parser when the language changes.
   function updateLanguage(nextLanguage: ProjectionLanguage) {
     sourceLanguage = nextLanguage
     sourceError = null
-    const shortestSample = findShortestSample(nextLanguage)
+    const shortestSample = findShortestSample(
+      SAMPLE_OPTIONS,
+      sampleContent,
+      nextLanguage
+    )
     if (shortestSample) {
       selectSample(shortestSample.value)
       return
@@ -544,31 +384,6 @@
       changes: { from: 0, to: sourceView.state.doc.length, insert: sourceText }
     })
     applySource(sourceText)
-  }
-
-  // Read persisted selection from local storage.
-  function readPersistedSelection(): {
-    language: ProjectionLanguage
-    sample: string
-  } | null {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as unknown
-      if (!parsed || typeof parsed !== 'object') return null
-      const record = parsed as { language?: string; sample?: string }
-      const language = record.language
-      const sample = record.sample
-      if (typeof language !== 'string' || !isProjectionLanguage(language)) {
-        return null
-      }
-      return {
-        language,
-        sample: typeof sample === 'string' ? sample : DEFAULT_SAMPLE_OPTION
-      }
-    } catch {
-      return null
-    }
   }
 
   // Select a sample and sync language state.
@@ -634,7 +449,11 @@
   onMount(() => {
     const persisted = readPersistedSelection()
     if (persisted) {
-      sourceLanguage = normalizeLanguage(persisted.language)
+      sourceLanguage = normalizeLanguage(
+        persisted.language,
+        LANGUAGE_OPTIONS,
+        DEFAULT_LANGUAGE
+      )
       if (persisted.sample) {
         const sample = SAMPLE_OPTIONS.find((option) => option.value === persisted.sample)
         if (sample?.supported && sampleContent[persisted.sample]) {
@@ -645,14 +464,18 @@
     }
 
     if (!ruleprojText) {
-      const ruleprojPath = findRuleprojSamplePath()
+      const ruleprojPath = findRuleprojSamplePath(SAMPLE_OPTIONS)
       if (ruleprojPath) {
         ruleprojText = sampleContent[ruleprojPath] ?? null
       }
     }
 
     if (!sourceText) {
-      const fallback = findShortestSample(sourceLanguage)
+      const fallback = findShortestSample(
+        SAMPLE_OPTIONS,
+        sampleContent,
+        sourceLanguage
+      )
       if (fallback) {
         selectedSample = fallback.value
         sourceText = sampleContent[fallback.value]
@@ -799,30 +622,20 @@
   })
 
   $effect(() => {
-    if (!activePath) return
-    const currentKey = serializePath(editorState.currentTokPath)
-    const nextKey = serializePath(activePath)
-    if (currentKey === nextKey) return
-    if (!getNodeByPath(editorState.root, activePath)) return
-    applyState(
-      {
-        ...editorState,
-        currentPath: activePath,
-        currentTokPath: activePath,
-        cursorOffset: 0
-      },
-      false
-    )
-  })
-
-  $effect(() => {
     if (!view) return
     view.dispatch({
       effects: highlightTheme.reconfigure(
         EditorView.theme(highlightRegistry.themeSpec)
       )
     })
-    applyState(editorState, false)
+    syncView(
+      view,
+      editorState,
+      setDecorations,
+      highlightRegistry,
+      focusWidget
+    )
+    updateDebugState(editorState, tokPaths)
   })
 
   // Blur the editor when the mode badge is clicked.
@@ -1062,7 +875,7 @@
             <option value={DEFAULT_SAMPLE_OPTION}>
               Select {getProjectionForLanguage(sourceLanguage).label} sample…
             </option>
-            {#each SAMPLE_OPTIONS as option}
+            {#each FILTERED_SAMPLE_OPTIONS as option}
               <option
                 value={option.value}
                 disabled={!option.supported}
