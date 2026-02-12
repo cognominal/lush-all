@@ -10,7 +10,8 @@
     "lush-lang"
   ],
   "devDependencies": {
-    "@types/node": "^22.10.2"
+    "@types/node": "^22.10.2",
+    "puppeteer": "^24.37.2"
   },
   "scripts": {
     "test": "bun test --cwd yaml && bun test --cwd lush-types && bun test --cwd lush-term-editor",

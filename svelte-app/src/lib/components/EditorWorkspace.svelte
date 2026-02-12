@@ -62,7 +62,7 @@
   })
 </script>
 
-<div class="flex h-full min-h-0 flex-col gap-6 lg:flex-row">
+<div data-svelte-cmpnm="EditorWorkspace" class="flex h-full min-h-0 flex-col gap-6 lg:flex-row">
   <div class="min-h-0 flex-1">
     <StructuralEditor
       bind:this={structuralEditorRef}

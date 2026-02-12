@@ -14,6 +14,7 @@
 </script>
 <p class=""></p>
 <div
+  data-svelte-cmpnm="BreadcrumbBar"
   class="flex flex-wrap items-center gap-1.5 border-t border-surface-500/20 px-3 py-2"
   aria-label="Breadcrumbs"
 >

@@ -11,6 +11,18 @@ This folder contains:
 - `w`, `h` are width and height in screenshot pixels.
 - Origin is the screenshot top-left.
 - `innerComponents` uses the same absolute screenshot coordinate space.
+- Svelte components can be declared in markup with
+  `data-svelte-cmpnm="ComponentFileName"`.
+- `svelteComponent` appears only for Svelte files under `.../components/...`.
+- Non-Svelte entries are limited to form fields (`input`, `select`,
+  `textarea`, `button`).
+- `name` is made unique by suffixing duplicates (`Name`, `Name_2`, `Name_3`).
+- `path` is a name-based tree path (`Root.Child.GrandChild`) built from
+  unique names.
+- `componentType` is:
+  - input type for `input` fields (for example `text`, `checkbox`),
+  - tag name for other form fields (`select`, `textarea`, `button`),
+  - Svelte component name when `svelteComponent` exists.
 
 ## Run extractor
 
@@ -23,11 +35,19 @@ bun manim/extract-components.mjs \
   --height 1080 \
   --dpr 1 \
   --screenshot manim/output/editor-1920x1080.jpg \
-  --output manim/output/editor-components.json
+  --output manim/output/editor-components.json \
+  --report manim/output/editor-components.txt
 ```
 
 `dpr` means `deviceScaleFactor`. Keep `1` for exact 1920x1080 pixels.
 Use `2` if you want sharper images and larger pixel coordinates.
+The extractor also writes an aligned text table report:
+`manim/output/editor-components.txt`.
+Each row has:
+- component `path`
+- component `name`
+- `componentType` (input type or Svelte component name)
+- component `w x h`
 
 ## Render movie
 

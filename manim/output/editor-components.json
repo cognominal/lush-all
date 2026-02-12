@@ -1,0 +1,187 @@
+[
+  {
+    "name": "EditorWorkspace",
+    "svelteComponent": "EditorWorkspace",
+    "componentType": "EditorWorkspace",
+    "x": 0,
+    "y": 53,
+    "w": 1920,
+    "h": 1027,
+    "caption": "Editor Workspace",
+    "path": "EditorWorkspace",
+    "innerComponents": [
+      {
+        "name": "StructuralEditor",
+        "svelteComponent": "StructuralEditor",
+        "componentType": "StructuralEditor",
+        "x": 0,
+        "y": 53,
+        "w": 948,
+        "h": 1027,
+        "caption": "Structural Editor",
+        "path": "EditorWorkspace.StructuralEditor",
+        "innerComponents": [
+          {
+            "name": "BreadcrumbBar",
+            "svelteComponent": "BreadcrumbBar",
+            "componentType": "BreadcrumbBar",
+            "x": 24,
+            "y": 985,
+            "w": 900,
+            "h": 39,
+            "caption": "Breadcrumb Bar",
+            "path": "EditorWorkspace.StructuralEditor.BreadcrumbBar",
+            "innerComponents": [
+              {
+                "name": "button",
+                "componentType": "button",
+                "x": 36,
+                "y": 994,
+                "w": 90,
+                "h": 22,
+                "caption": "button",
+                "path": "EditorWorkspace.StructuralEditor.BreadcrumbBar.button",
+                "innerComponents": []
+              },
+              {
+                "name": "button_2",
+                "componentType": "button",
+                "x": 142,
+                "y": 994,
+                "w": 83,
+                "h": 22,
+                "caption": "button",
+                "path": "EditorWorkspace.StructuralEditor.BreadcrumbBar.button_2",
+                "innerComponents": []
+              }
+            ]
+          },
+          {
+            "name": "HighlightEditor",
+            "svelteComponent": "HighlightEditor",
+            "componentType": "HighlightEditor",
+            "x": 250,
+            "y": 133,
+            "w": 674,
+            "h": 34,
+            "caption": "Highlight Editor",
+            "path": "EditorWorkspace.StructuralEditor.HighlightEditor",
+            "innerComponents": [
+              {
+                "name": "text",
+                "componentType": "text",
+                "x": 250,
+                "y": 133,
+                "w": 674,
+                "h": 34,
+                "caption": "text",
+                "path": "EditorWorkspace.StructuralEditor.HighlightEditor.text",
+                "innerComponents": []
+              }
+            ]
+          },
+          {
+            "name": "select",
+            "componentType": "select",
+            "x": 671,
+            "y": 183,
+            "w": 253,
+            "h": 27,
+            "caption": "select",
+            "path": "EditorWorkspace.StructuralEditor.select",
+            "innerComponents": []
+          },
+          {
+            "name": "select_2",
+            "componentType": "select",
+            "x": 24,
+            "y": 133,
+            "w": 214,
+            "h": 27,
+            "caption": "select",
+            "path": "EditorWorkspace.StructuralEditor.select_2",
+            "innerComponents": []
+          },
+          {
+            "name": "select_3",
+            "componentType": "select",
+            "x": 533,
+            "y": 183,
+            "w": 130,
+            "h": 27,
+            "caption": "select",
+            "path": "EditorWorkspace.StructuralEditor.select_3",
+            "innerComponents": []
+          }
+        ]
+      },
+      {
+        "name": "SusyYamlPanel",
+        "svelteComponent": "SusyYamlPanel",
+        "componentType": "SusyYamlPanel",
+        "x": 972,
+        "y": 213,
+        "w": 948,
+        "h": 867,
+        "caption": "Susy Yaml Panel",
+        "path": "EditorWorkspace.SusyYamlPanel",
+        "innerComponents": []
+      },
+      {
+        "name": "input",
+        "componentType": "text",
+        "x": 996,
+        "y": 101,
+        "w": 900,
+        "h": 38,
+        "caption": "input",
+        "path": "EditorWorkspace.input",
+        "innerComponents": []
+      },
+      {
+        "name": "input_2",
+        "componentType": "text",
+        "x": 996,
+        "y": 175,
+        "w": 900,
+        "h": 38,
+        "caption": "input",
+        "path": "EditorWorkspace.input_2",
+        "innerComponents": []
+      }
+    ]
+  },
+  {
+    "name": "button_3",
+    "componentType": "button",
+    "x": 16,
+    "y": 8,
+    "w": 81,
+    "h": 36,
+    "caption": "button",
+    "path": "button_3",
+    "innerComponents": []
+  },
+  {
+    "name": "button_4",
+    "componentType": "button",
+    "x": 175,
+    "y": 8,
+    "w": 79,
+    "h": 36,
+    "caption": "button",
+    "path": "button_4",
+    "innerComponents": []
+  },
+  {
+    "name": "button_5",
+    "componentType": "button",
+    "x": 101,
+    "y": 8,
+    "w": 71,
+    "h": 36,
+    "caption": "button",
+    "path": "button_5",
+    "innerComponents": []
+  }
+]

@@ -598,7 +598,7 @@
   })
 </script>
 
-<div class="flex h-full min-h-0 flex-col gap-4 p-6">
+<div data-svelte-cmpnm="SusyYamlPanel" class="flex h-full min-h-0 flex-col gap-4 p-6">
   <div class="flex items-baseline justify-between">
     <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
       Susy YAML

@@ -35,9 +35,13 @@ def parse_component(raw: dict[str, Any]) -> ComponentData:
         h=float(raw.get("h", 1)),
         caption=str(raw.get("caption", raw.get("name", "Component"))),
         svelte_component_name=(
-            str(raw["svelteComponentName"])
-            if isinstance(raw.get("svelteComponentName"), str)
-            else None
+            str(raw["svelteComponent"])
+            if isinstance(raw.get("svelteComponent"), str)
+            else (
+                str(raw["svelteComponentName"])
+                if isinstance(raw.get("svelteComponentName"), str)
+                else None
+            )
         ),
         inner_components=inner,
     )
