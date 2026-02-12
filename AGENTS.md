@@ -69,6 +69,9 @@ Always reformulate before acting.
 ## Commits
 
 When committing add in the message body the codex session that edited the code.
+The commit subject stays a real title (do not replace it with folder names).
+The subject may start with zero, one, or many `doc:`, `feat:`, `fix:` prefixes.
+If you include top folders (slash terminated), omit them when files are only at `/`.
 
 ## Tauri and non Tauri
 
