@@ -11,14 +11,23 @@
   import {
     Decoration,
     EditorView,
+    GutterMarker,
     ViewPlugin,
+    gutter,
+    lineNumbers,
     type DecorationSet,
     type ViewUpdate
   } from '@codemirror/view'
   import { basicSetup } from 'codemirror'
   import { yaml } from '@codemirror/lang-yaml'
   import { oneDark } from '@codemirror/theme-one-dark'
-  import { foldedRanges } from '@codemirror/language'
+  import {
+    codeFolding,
+    foldEffect,
+    foldState,
+    foldedRanges,
+    unfoldEffect
+  } from '@codemirror/language'
   import { onDidChangeConfiguration, workspace } from '$lib/config/workspaceConfiguration'
   import {
     findSusyYamlPathAtPos,
@@ -56,6 +65,7 @@
 
   let yamlText = $state(emptyMessage)
   let lastActiveKey = $state<string | null>(null)
+  let lastAutoFoldRange: { from: number; to: number } | null = null
 
   const setHighlightRange = StateEffect.define<{ from: number; to: number } | null>()
   const highlightRangeField = StateField.define<{ from: number; to: number } | null>({
@@ -271,6 +281,183 @@
     view.dispatch({ effects })
   }
 
+  // Check whether a specific fold range is currently present.
+  function hasFoldRange(nextView: EditorView, range: { from: number; to: number }): boolean {
+    let exists = false
+    foldedRanges(nextView.state).between(range.from, range.to, (from, to) => {
+      if (from === range.from && to === range.to) {
+        exists = true
+        return false
+      }
+    })
+    return exists
+  }
+
+  // Fold oversized selections so the focused block fits in the pane.
+  function syncAutoFoldToPane(nextView: EditorView): void {
+    const range = getHighlightRange()
+    if (!range) {
+      if (lastAutoFoldRange && hasFoldRange(nextView, lastAutoFoldRange)) {
+        nextView.dispatch({ effects: unfoldEffect.of(lastAutoFoldRange) })
+      }
+      lastAutoFoldRange = null
+      return
+    }
+
+    const fromLine = nextView.state.doc.lineAt(range.from)
+    const toLine = nextView.state.doc.lineAt(range.to)
+    const lineCount = toLine.number - fromLine.number + 1
+    const lineHeight = nextView.defaultLineHeight || 1
+    const visibleLineBudget = Math.max(1, Math.floor(nextView.scrollDOM.clientHeight / lineHeight))
+    const shouldFold = lineCount > visibleLineBudget && toLine.number > fromLine.number
+    const foldRange = { from: fromLine.to, to: toLine.to }
+
+    if (
+      lastAutoFoldRange &&
+      (lastAutoFoldRange.from !== foldRange.from || lastAutoFoldRange.to !== foldRange.to) &&
+      hasFoldRange(nextView, lastAutoFoldRange)
+    ) {
+      nextView.dispatch({ effects: unfoldEffect.of(lastAutoFoldRange) })
+    }
+
+    if (!shouldFold || foldRange.to <= foldRange.from) {
+      lastAutoFoldRange = null
+      return
+    }
+
+    if (!hasFoldRange(nextView, foldRange)) {
+      nextView.dispatch({ effects: foldEffect.of(foldRange) })
+    }
+    lastAutoFoldRange = foldRange
+  }
+
+  // Resolve an indentation-based fold range for the line start.
+  function getIndentFoldRange(
+    state: EditorState,
+    lineStart: number
+  ): { from: number; to: number } | null {
+    const line = state.doc.lineAt(lineStart)
+    const lineText = line.text
+    if (!lineText.trim()) return null
+    const indentMatch = /^(\s*)/.exec(lineText)
+    const baseIndent = indentMatch?.[1].length ?? 0
+    let to: number | null = null
+    for (let lineNo = line.number + 1; lineNo <= state.doc.lines; lineNo += 1) {
+      const nextLine = state.doc.line(lineNo)
+      const nextText = nextLine.text
+      if (!nextText.trim()) continue
+      const nextIndentMatch = /^(\s*)/.exec(nextText)
+      const nextIndent = nextIndentMatch?.[1].length ?? 0
+      if (nextIndent <= baseIndent) break
+      to = nextLine.to
+    }
+    if (to === null || to <= line.to) return null
+    return { from: line.to, to }
+  }
+
+  class SusyFoldMarker extends GutterMarker {
+    open: boolean
+
+    constructor(open: boolean) {
+      super()
+      this.open = open
+    }
+
+    // Keep marker instances reusable for identical states.
+    eq(other: SusyFoldMarker): boolean {
+      return this.open === other.open
+    }
+
+    // Render a CM-style fold marker glyph.
+    toDOM(): HTMLElement {
+      const span = document.createElement('span')
+      span.textContent = this.open ? '⌄' : '›'
+      return span
+    }
+  }
+
+  const canFoldMarker = new SusyFoldMarker(true)
+  const canUnfoldMarker = new SusyFoldMarker(false)
+
+  // Find a folded range that starts at the given line boundary.
+  function findFoldForLine(
+    state: EditorState,
+    lineStart: number
+  ): { from: number; to: number } | null {
+    const line = state.doc.lineAt(lineStart)
+    let found: { from: number; to: number } | null = null
+    foldedRanges(state).between(line.to, line.to + 1, (from, to) => {
+      if (from === line.to) {
+        found = { from, to }
+        return false
+      }
+    })
+    return found
+  }
+
+  // Build a dedicated fold gutter for Susy YAML panes.
+  const susyFoldGutter = gutter({
+    class: 'cm-foldGutter',
+    // Recompute fold markers when document, viewport, or fold state changes.
+    lineMarkerChange(update) {
+      return (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.startState.field(foldState, false) !== update.state.field(foldState, false)
+      )
+    },
+    // Show closed/open marker depending on current line fold state.
+    lineMarker(view, line) {
+      const folded = findFoldForLine(view.state, line.from)
+      if (folded) return canUnfoldMarker
+      const range = getIndentFoldRange(view.state, line.from)
+      return range ? canFoldMarker : null
+    },
+    // Keep gutter width stable even when no visible foldable lines are in view.
+    initialSpacer() {
+      return canFoldMarker
+    },
+    // Toggle fold state when a fold marker line is clicked.
+    domEventHandlers: {
+      click(view, line) {
+        const folded = findFoldForLine(view.state, line.from)
+        if (folded) {
+          view.dispatch({ effects: unfoldEffect.of(folded) })
+          return true
+        }
+        const range = getIndentFoldRange(view.state, line.from)
+        if (!range) return false
+        view.dispatch({ effects: foldEffect.of(range) })
+        return true
+      }
+    }
+  })
+
+  // Toggle folding for the currently highlighted block.
+  function toggleActiveFold(nextView: EditorView): boolean {
+    const range = getHighlightRange()
+    if (!range) return false
+    const fromLine = nextView.state.doc.lineAt(range.from)
+    const toLine = nextView.state.doc.lineAt(range.to)
+    if (toLine.number <= fromLine.number) return false
+    const foldRange = { from: fromLine.to, to: toLine.to }
+    if (foldRange.to <= foldRange.from) return false
+    if (hasFoldRange(nextView, foldRange)) {
+      nextView.dispatch({ effects: unfoldEffect.of(foldRange) })
+      if (
+        lastAutoFoldRange &&
+        lastAutoFoldRange.from === foldRange.from &&
+        lastAutoFoldRange.to === foldRange.to
+      ) {
+        lastAutoFoldRange = null
+      }
+      return true
+    }
+    nextView.dispatch({ effects: foldEffect.of(foldRange) })
+    lastAutoFoldRange = foldRange
+    return true
+  }
+
   onMount(() => {
     view = new EditorView({
       parent: host,
@@ -278,15 +465,33 @@
         doc: yamlText,
         extensions: [
           basicSetup,
+          lineNumbers(),
+          codeFolding(),
+          susyFoldGutter,
           yaml(),
           oneDark,
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
           highlightCompartment.of(buildHighlightExtensions()),
           EditorView.domEventHandlers({
-            // Sync focus path when YAML is clicked.
+            // Toggle folding when clicking in the left gutter margin.
             mousedown: (event) => {
               if (!view) return false
+              const target = event.target as HTMLElement | null
+              if (target?.closest('.cm-gutters')) {
+                const handled = toggleActiveFold(view)
+                if (handled) {
+                  event.preventDefault()
+                  return true
+                }
+              }
+              return false
+            },
+            // Sync focus path when YAML is clicked.
+            click: (event) => {
+              if (!view) return false
+              const target = event.target as HTMLElement | null
+              if (target?.closest('.cm-gutters')) return false
               const coords = { x: event.clientX, y: event.clientY }
               const pos = view.posAtCoords(coords)
               if (pos == null) return false
@@ -313,6 +518,14 @@
               overflow: 'auto',
               position: 'relative'
             },
+            '.cm-gutters': {
+              backgroundColor: 'rgba(2, 6, 23, 0.9)',
+              borderRight: '1px solid rgba(148, 163, 184, 0.25)',
+              color: 'rgba(148, 163, 184, 0.9)'
+            },
+            '.cm-gutterElement': {
+              padding: '0 8px'
+            },
             '.cm-susy-yaml-focus-block': {
               position: 'absolute',
               pointerEvents: 'none',
@@ -330,6 +543,10 @@
         ]
       })
     })
+    if (import.meta.env.DEV) {
+      const target = window as Window & { __susyYamlView?: EditorView | null }
+      target.__susyYamlView = view
+    }
     teardownConfig = onDidChangeConfiguration((event) => {
       if (!event.affectsConfiguration('editor.blockSelectHighlight')) return
       const next = workspace.getConfiguration().get('editor.blockSelectHighlight', true)
@@ -337,6 +554,7 @@
       blockHighlightEnabled = next
       syncHighlightMode()
     })
+    syncAutoFoldToPane(view)
   })
 
   $effect(() => {
@@ -364,10 +582,15 @@
     activePath
     spansByPath
     syncHighlight()
+    if (view) syncAutoFoldToPane(view)
   })
 
   // Tear down the editor view and listeners.
   onDestroy(() => {
+    if (import.meta.env.DEV) {
+      const target = window as Window & { __susyYamlView?: EditorView | null }
+      target.__susyYamlView = null
+    }
     teardownConfig?.()
     teardownConfig = null
     view?.destroy()

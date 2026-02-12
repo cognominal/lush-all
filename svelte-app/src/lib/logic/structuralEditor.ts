@@ -1,4 +1,9 @@
-import { EditorSelection, type Range, type StateEffectType } from '@codemirror/state'
+import {
+  EditorSelection,
+  type Range,
+  type StateEffect as StateEffectValue,
+  type StateEffectType
+} from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
@@ -147,11 +152,25 @@ export function buildSelection(state: StructuralEditorState): EditorSelection {
   return EditorSelection.single(caret)
 }
 
+// Return whether a range is multiline, ignoring only surrounding line breaks.
+export function isMultilineRangeIgnoringEdgeBreaks(
+  text: string,
+  from: number,
+  to: number
+): boolean {
+  const start = Math.max(0, Math.min(from, text.length))
+  const end = Math.max(start, Math.min(to, text.length))
+  if (start >= end) return false
+  const core = text.slice(start, end).replace(/^[\r\n]+|[\r\n]+$/g, '')
+  return core.includes('\n')
+}
+
 // Build CodeMirror decorations for syntax and focus styling.
 export function buildDecorations(
   state: StructuralEditorState,
   highlightRegistry: HighlightRegistry,
-  focusWidget: WidgetType
+  focusWidget: WidgetType,
+  blockHighlightEnabled: boolean
 ): DecorationSet {
   const decorations: Array<Range<Decoration>> = []
 
@@ -174,11 +193,20 @@ export function buildDecorations(
   if (state.mode === 'normal') {
     const focusSpan = getSpan(state, state.currentPath)
     if (focusSpan) {
+      const focusRange = getTextRange(focusSpan)
+      const isMultilineFocus =
+        focusRange.from < focusRange.to &&
+        isMultilineRangeIgnoringEdgeBreaks(
+          state.projectionText,
+          focusRange.from,
+          focusRange.to
+        )
+      const useBlockHighlight = blockHighlightEnabled && isMultilineFocus
       if (focusSpan.from === focusSpan.to) {
         decorations.push(
           Decoration.widget({ widget: focusWidget, side: 1 }).range(focusSpan.from)
         )
-      } else {
+      } else if (!useBlockHighlight) {
         decorations.push(
           Decoration.mark({ class: 'cm-structural-focus' }).range(
             focusSpan.from,
@@ -198,11 +226,21 @@ export function syncView(
   state: StructuralEditorState,
   setDecorations: StateEffectType<DecorationSet>,
   highlightRegistry: HighlightRegistry,
-  focusWidget: WidgetType
+  focusWidget: WidgetType,
+  blockHighlightEnabled: boolean,
+  focusHighlightEffect?: StateEffectType<{ from: number; to: number } | null>,
+  focusHighlightRange?: { from: number; to: number } | null
 ): void {
   if (!view) return
   const currentDoc = view.state.doc.toString()
-  const effects = [setDecorations.of(buildDecorations(state, highlightRegistry, focusWidget))]
+  const effects: Array<StateEffectValue<unknown>> = [
+    setDecorations.of(
+      buildDecorations(state, highlightRegistry, focusWidget, blockHighlightEnabled)
+    )
+  ]
+  if (focusHighlightEffect) {
+    effects.push(focusHighlightEffect.of(focusHighlightRange ?? null))
+  }
   const selection = buildSelection(state)
   const changes =
     currentDoc === state.projectionText
@@ -218,9 +256,21 @@ export function setStateAndSync(
   view: EditorView | null,
   setDecorations: StateEffectType<DecorationSet>,
   highlightRegistry: HighlightRegistry,
-  focusWidget: WidgetType
+  focusWidget: WidgetType,
+  blockHighlightEnabled: boolean,
+  focusHighlightEffect?: StateEffectType<{ from: number; to: number } | null>,
+  focusHighlightRange?: { from: number; to: number } | null
 ): StructuralEditorState {
-  syncView(view, next, setDecorations, highlightRegistry, focusWidget)
+  syncView(
+    view,
+    next,
+    setDecorations,
+    highlightRegistry,
+    focusWidget,
+    blockHighlightEnabled,
+    focusHighlightEffect,
+    focusHighlightRange
+  )
   return next
 }
 

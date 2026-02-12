@@ -5,14 +5,18 @@
     EditorState,
     StateEffect,
     StateField,
+    type Extension,
     type StateEffectType
   } from '@codemirror/state'
   import {
     Decoration,
     EditorView,
+    ViewPlugin,
     WidgetType,
-    type DecorationSet
+    type DecorationSet,
+    type ViewUpdate
   } from '@codemirror/view'
+  import { foldedRanges } from '@codemirror/language'
   import {
     createHighlightRegistry,
     getNodeByPath,
@@ -26,6 +30,7 @@
   import highlightRaw from '@lush/structural/themes/default.yaml?raw'
   import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import HighlightEditor from '$lib/components/HighlightEditor.svelte'
+  import { onDidChangeConfiguration, workspace } from '$lib/config/workspaceConfiguration'
   import {
     buildBreadcrumbs,
     clamp,
@@ -35,6 +40,7 @@
     getSpan,
     getTextRange,
     handleKey,
+    isMultilineRangeIgnoringEdgeBreaks,
     rebuildProjection,
     resolveInsertTarget,
     parsePathKey,
@@ -86,9 +92,13 @@
   let highlightSaving = $state(false)
   let highlightThemeTimer: ReturnType<typeof setTimeout> | null = null
   let teardownThemeEraseRefresh: (() => void) | null = null
+  let teardownConfig: (() => void) | null = null
   let highlightEditorRef = $state<{ focus: () => void } | null>(null)
   let highlightRestoreToken = $state(0)
   let lastFocusKey: string | null = null
+  let blockHighlightEnabled = workspace
+    .getConfiguration()
+    .get('editor.blockSelectHighlight', true)
 
   // List of supported highlight style tokens.
   const VALID_HIGHLIGHT_TOKENS = new Set([
@@ -141,6 +151,167 @@
     // Expose the decorations to CodeMirror view.
     provide: (field) => EditorView.decorations.from(field)
   })
+
+  const focusHighlightCompartment = new Compartment()
+  const setFocusHighlightRange = StateEffect.define<{ from: number; to: number } | null>()
+  const focusHighlightRangeField = StateField.define<{ from: number; to: number } | null>({
+    // Track the focus highlight range in sync with document updates.
+    create() {
+      return null
+    },
+    // Update the tracked range after edits and explicit range effects.
+    update(range, tr) {
+      let next = range
+      if (range) {
+        next = {
+          from: tr.changes.mapPos(range.from),
+          to: tr.changes.mapPos(range.to)
+        }
+      }
+      for (const effect of tr.effects) {
+        if (!effect.is(setFocusHighlightRange)) continue
+        const value = effect.value
+        if (!value) {
+          next = null
+          continue
+        }
+        const from = Math.max(0, Math.min(value.from, tr.state.doc.length))
+        const to = Math.max(from, Math.min(value.to, tr.state.doc.length))
+        next = { from, to }
+      }
+      return next
+    }
+  })
+
+  // Clamp a highlight range to valid document offsets.
+  function clampHighlightRange(
+    view: EditorView,
+    range: { from: number; to: number }
+  ): { from: number; to: number } {
+    const docLength = view.state.doc.length
+    const from = Math.max(0, Math.min(range.from, docLength))
+    const to = Math.max(from, Math.min(range.to, docLength))
+    return { from, to }
+  }
+
+  // Compute the multiline block-highlight range for the current focus.
+  function getBlockFocusRange(state: StructuralEditorState): { from: number; to: number } | null {
+    if (!blockHighlightEnabled || state.mode !== 'normal') return null
+    const span = getSpan(state, state.currentPath)
+    if (!span) return null
+    const range = getTextRange(span)
+    if (range.from >= range.to) return null
+    if (!isMultilineRangeIgnoringEdgeBreaks(state.projectionText, range.from, range.to)) {
+      return null
+    }
+    return range
+  }
+
+  // Fold block highlights to the visible section when folded lines are present.
+  function resolveVisibleRange(
+    view: EditorView,
+    range: { from: number; to: number }
+  ): { from: number; to: number } {
+    const normalized = clampHighlightRange(view, range)
+    let visibleTo = normalized.to
+    foldedRanges(view.state).between(normalized.from, normalized.to, (from) => {
+      if (from > normalized.from && from < visibleTo) {
+        visibleTo = from
+        return false
+      }
+    })
+    return { from: normalized.from, to: visibleTo }
+  }
+
+  // Position the focus overlay rectangle over the highlighted block.
+  function updateFocusHighlightOverlay(view: EditorView, overlay: HTMLDivElement): void {
+    const range = view.state.field(focusHighlightRangeField, false)
+    if (!range || range.from === range.to) {
+      overlay.style.display = 'none'
+      return
+    }
+    const visible = resolveVisibleRange(view, range)
+    if (visible.from >= visible.to) {
+      overlay.style.display = 'none'
+      return
+    }
+    view.requestMeasure({
+      read: () => {
+        const fromCoords = view.coordsAtPos(visible.from)
+        const toCoords = view.coordsAtPos(visible.to, -1)
+        if (!fromCoords || !toCoords) return null
+        const scrollRect = view.scrollDOM.getBoundingClientRect()
+        const contentRect = view.contentDOM.getBoundingClientRect()
+        return {
+          top: Math.min(fromCoords.top, toCoords.top),
+          bottom: Math.max(fromCoords.bottom, toCoords.bottom),
+          left: contentRect.left - scrollRect.left + view.scrollDOM.scrollLeft,
+          width: contentRect.width,
+          scrollTop: view.scrollDOM.scrollTop,
+          scrollTopRect: scrollRect.top
+        }
+      },
+      write: (data) => {
+        if (!data) {
+          overlay.style.display = 'none'
+          return
+        }
+        overlay.style.display = 'block'
+        overlay.style.left = `${data.left}px`
+        overlay.style.top = `${data.top - data.scrollTopRect + data.scrollTop}px`
+        overlay.style.width = `${data.width}px`
+        overlay.style.height = `${Math.max(0, data.bottom - data.top)}px`
+      }
+    })
+  }
+
+  const focusHighlightOverlay = ViewPlugin.fromClass(
+    class {
+      overlay: HTMLDivElement
+      scrollRoot: HTMLElement
+      onScroll: () => void
+
+      // Create and attach the multiline focus highlight overlay.
+      constructor(view: EditorView) {
+        this.overlay = document.createElement('div')
+        this.overlay.className = 'cm-structural-focus-block'
+        this.scrollRoot = view.scrollDOM
+        this.scrollRoot.appendChild(this.overlay)
+        this.onScroll = () => updateFocusHighlightOverlay(view, this.overlay)
+        this.scrollRoot.addEventListener('scroll', this.onScroll)
+        updateFocusHighlightOverlay(view, this.overlay)
+      }
+
+      // Recompute overlay geometry when document or viewport state changes.
+      update(update: ViewUpdate) {
+        const rangeChanged =
+          update.startState.field(focusHighlightRangeField, false) !==
+          update.state.field(focusHighlightRangeField, false)
+        if (update.docChanged || update.viewportChanged || update.geometryChanged || rangeChanged) {
+          updateFocusHighlightOverlay(update.view, this.overlay)
+        }
+      }
+
+      // Remove overlay DOM and listeners on teardown.
+      destroy() {
+        this.overlay.remove()
+        this.scrollRoot.removeEventListener('scroll', this.onScroll)
+      }
+    }
+  )
+
+  // Build focus highlight extensions according to block highlight settings.
+  function buildFocusHighlightExtensions(): Extension {
+    return blockHighlightEnabled ? [focusHighlightRangeField, focusHighlightOverlay] : []
+  }
+
+  // Reconfigure focus highlight mode when block highlighting changes.
+  function syncFocusHighlightMode(): void {
+    if (!view) return
+    view.dispatch({
+      effects: focusHighlightCompartment.reconfigure(buildFocusHighlightExtensions())
+    })
+  }
 
   const initial = createInitialState(getProjectionForLanguage(DEFAULT_LANGUAGE).project(''))
   tokPaths = initial.tokPaths
@@ -330,12 +501,16 @@
 
   // Sync state and view changes through shared logic.
   function applyState(next: StructuralEditorState, emitFocus = true) {
+    const focusRange = getBlockFocusRange(next)
     const nextState = setStateAndSync(
       next,
       view,
       setDecorations,
       highlightRegistry,
-      focusWidget
+      focusWidget,
+      blockHighlightEnabled,
+      setFocusHighlightRange,
+      focusRange
     )
     const currentState = untrack(() => editorState)
     if (nextState !== currentState) {
@@ -635,6 +810,7 @@
           updateListener,
           decorationsField,
           highlightTheme.of(EditorView.theme(highlightRegistry.themeSpec)),
+          focusHighlightCompartment.of(buildFocusHighlightExtensions()),
           EditorView.theme({
             '&': {
               height: '100%',
@@ -645,13 +821,24 @@
             },
             '.cm-content': {
               padding: '16px',
-              caretColor: 'rgba(56, 189, 248, 0.95)'
+              caretColor: 'rgba(56, 189, 248, 0.95)',
+              position: 'relative',
+              zIndex: 1
             },
             '.cm-scroller': {
-              overflow: 'auto'
+              overflow: 'auto',
+              position: 'relative'
             },
             '.cm-cursor': {
               borderLeftColor: 'rgba(56, 189, 248, 0.95)'
+            },
+            '.cm-structural-focus-block': {
+              position: 'absolute',
+              pointerEvents: 'none',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              outline: '1px solid rgba(56, 189, 248, 0.7)',
+              borderRadius: '3px',
+              zIndex: 0
             },
             '.cm-structural-focus': {
               backgroundColor: 'transparent',
@@ -670,13 +857,33 @@
       })
     })
     updateDebugView(view)
+    teardownConfig = onDidChangeConfiguration((event) => {
+      if (!event.affectsConfiguration('editor.blockSelectHighlight')) return
+      const next = workspace.getConfiguration().get('editor.blockSelectHighlight', true)
+      if (next === blockHighlightEnabled) return
+      blockHighlightEnabled = next
+      syncFocusHighlightMode()
+      syncView(
+        view,
+        editorState,
+        setDecorations,
+        highlightRegistry,
+        focusWidget,
+        blockHighlightEnabled,
+        setFocusHighlightRange,
+        getBlockFocusRange(editorState)
+      )
+    })
 
     syncView(
       view,
       editorState,
       setDecorations,
       highlightRegistry,
-      focusWidget
+      focusWidget,
+      blockHighlightEnabled,
+      setFocusHighlightRange,
+      getBlockFocusRange(editorState)
     )
     isMounted = true
     persistSelection()
@@ -686,6 +893,8 @@
   // Tear down the editor view on destroy.
   onDestroy(() => {
     if (teardownThemeEraseRefresh) teardownThemeEraseRefresh()
+    teardownConfig?.()
+    teardownConfig = null
     view?.destroy()
     updateDebugView(null)
     updateDebugControls(null)
@@ -875,7 +1084,10 @@
         editorState,
         setDecorations,
         highlightRegistry,
-        focusWidget
+        focusWidget,
+        blockHighlightEnabled,
+        setFocusHighlightRange,
+        getBlockFocusRange(editorState)
       )
       updateDebugState(editorState, tokPaths)
     }, 120)
