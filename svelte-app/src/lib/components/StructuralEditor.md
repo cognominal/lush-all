@@ -35,11 +35,18 @@ Normal mode:
 - `i` enters insert mode.
 - `Tab` and `Shift+Tab` move between input tokens.
 - `Enter` descends into the next child path.
+- `Esc` enlarges selection to the parent path.
 
 Insert mode:
 
 - `Esc` returns to normal mode.
 - Printable characters insert into the current token.
+
+## Cross-panel sync
+
+- Focus path changes are emitted through `onFocusPath`.
+- The breadcrumb bar updates from `currentPath`.
+- The Susy YAML panel follows the emitted focus path.
 
 ## Notes
 

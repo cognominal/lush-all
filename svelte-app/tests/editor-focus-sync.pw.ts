@@ -63,3 +63,54 @@ test('susy yaml click syncs structural editor focus', async ({ page }) => {
   })
   expect(activePath).toEqual(tokPath)
 })
+
+// Verify Escape in normal mode expands focus to the parent path.
+test('escape in normal mode expands selection and syncs focus path', async ({ page }) => {
+  await page.goto('/editor')
+  await page.waitForFunction(() => {
+    const workspace = window as Window & {
+      __editorWorkspaceActivePath?: number[] | null
+    }
+    const active = workspace.__editorWorkspaceActivePath
+    return Array.isArray(active) && active.length > 0
+  })
+  const initial = await page.evaluate(() =>
+    (window as Window & { __editorWorkspaceActivePath?: number[] | null })
+      .__editorWorkspaceActivePath ?? null
+  )
+  await page.evaluate(() =>
+    (window as Window & {
+      __structuralEditorDebug?: { handleKey: (key: string) => void }
+    }).__structuralEditorDebug?.handleKey('Tab')
+  )
+  await page.waitForFunction((previous) => {
+    const workspace = window as Window & {
+      __editorWorkspaceActivePath?: number[] | null
+    }
+    const active = workspace.__editorWorkspaceActivePath
+    return JSON.stringify(active) !== JSON.stringify(previous)
+  }, initial)
+  const beforeEscape = await page.evaluate(() =>
+    (window as Window & { __editorWorkspaceActivePath?: number[] | null })
+      .__editorWorkspaceActivePath ?? null
+  )
+  await page.evaluate(() =>
+    (window as Window & {
+      __structuralEditorDebug?: { handleKey: (key: string) => void }
+    }).__structuralEditorDebug?.handleKey('Escape')
+  )
+  await page.waitForFunction((before) => {
+    const workspace = window as Window & {
+      __editorWorkspaceActivePath?: number[] | null
+      __structuralEditorState?: { currentTokPath?: number[] }
+    }
+    const active = workspace.__editorWorkspaceActivePath
+    const tok = workspace.__structuralEditorState?.currentTokPath ?? null
+    if (!Array.isArray(before) || !Array.isArray(active) || !Array.isArray(tok)) {
+      return false
+    }
+    if (active.length !== before.length - 1) return false
+    if (JSON.stringify(active) !== JSON.stringify(before.slice(0, -1))) return false
+    return JSON.stringify(active) === JSON.stringify(tok)
+  }, beforeEscape)
+})

@@ -1,8 +1,9 @@
 //  a // comment
 /* a C like comment */
-if (1) {
+const pred: boolean = true
+if (pred) {
   console.log('success')
 }
-if (2) {
+if (pred) {
   console.log('success again')
 }

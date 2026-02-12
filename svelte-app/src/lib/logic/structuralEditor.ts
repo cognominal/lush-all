@@ -449,6 +449,22 @@ export function descend(state: StructuralEditorState): StructuralEditorState {
   }
 }
 
+// Expand normal-mode focus to the parent path when available.
+export function enlargeSelectionToParent(
+  state: StructuralEditorState
+): StructuralEditorState {
+  if (state.currentPath.length === 0) return state
+  const parentPath = state.currentPath.slice(0, -1)
+  const span = getSpan(state, parentPath)
+  const range = getTextRange(span)
+  return {
+    ...state,
+    currentPath: parentPath,
+    currentTokPath: parentPath,
+    cursorOffset: range.from
+  }
+}
+
 // Move focus to the next token path if available.
 export function moveToNextInput(
   state: StructuralEditorState,
@@ -581,7 +597,9 @@ function handleNormalKey(
       : moveToNextInput(state, tokPaths)
     return { handled: true, state: nextState, tokPaths }
   }
-  if (event.key === 'Escape') return { handled: true, state, tokPaths }
+  if (event.key === 'Escape') {
+    return { handled: true, state: enlargeSelectionToParent(state), tokPaths }
+  }
   return { handled: true, state, tokPaths }
 }
 

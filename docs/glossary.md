@@ -4,7 +4,7 @@
 ## Model
 
 The central, single source of truth representing the program's logic and data.
-It is a structured collection of nodes (the AST) that exists independently of
+It is a structured collection of nodes (the astre) that exists independently of
 how it is displayed. Changes to the model are immediately reflected in all its
 projections.
 
@@ -27,6 +27,18 @@ Astre is:
 
 **Relation to standard terminology:**
 Astre corresponds to **AST + IR + identity layer**, unified into a single model.
+
+## Astre serialisation
+
+The serialisation is the act of persisting an Astre in yaml.
+
+## Vanilla language
+
+In a vanilla language, a source program is a string of chars which
+respects
+the syntax of the language.
+This source is the reference representation of the
+program. As the lush project advances, we design posh susy representations
 
 ## Structural token
 
@@ -71,14 +83,15 @@ Manipulating the AST directly. In "Posh" mode, the user interacts with styled
 text blocks; though it looks like "rich text" editing, every font change
 corresponds to a structural change in the model.
 
-## Persistence
-
-The underlying storage (XML/JSON). For two-level embedding, persistence must
-track which parts belong to the host (YAML) and which belong to the
-interpolated logic for proper variable scoping. Projectional Editor
-
 ## Projectional Editor
 
-An IDE or editor where users manipulate the Abstract Syntax Tree (AST) directly
-via a projected view. Unlike text editors, there is no parsing of raw text; the
+An IDE or editor where users evolves an Astre by editing
+its projection. Unlike text editors, there is no parsing of raw text
+except for the initial conversion. The
 UI renders the model based on defined rules.
+
+## Projection
+
+## Susy
+
+The result of a projection
