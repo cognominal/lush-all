@@ -230,6 +230,16 @@
     })
 
     registerCommand({
+      command: 'lush.eraseUserThemes',
+      title: 'erase user themes',
+      category: 'Lush',
+      f1: true,
+      handler: () => {
+        void eraseUserThemesFromPalette()
+      }
+    })
+
+    registerCommand({
       command: 'lush.about',
       title: 'About Lush',
       category: 'Lush',
@@ -240,6 +250,30 @@
     })
 
     registerBlockHighlightCommand()
+  }
+
+  // Erase user themes via the themes API and report the outcome.
+  async function eraseUserThemesFromPalette() {
+    try {
+      const response = await fetch('/api/themes', { method: 'DELETE' })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Failed to erase user themes.')
+      }
+      const data = (await response.json()) as { deleted?: unknown }
+      const deletedCount =
+        typeof data.deleted === 'number' && Number.isFinite(data.deleted)
+          ? data.deleted
+          : 0
+      // Notify open editors so they reload theme files immediately.
+      window.dispatchEvent(new CustomEvent('lush:themes-erased'))
+      aboutMessage = `Erased ${deletedCount} user theme file(s).`
+      aboutOpen = true
+    } catch (error) {
+      aboutMessage =
+        error instanceof Error ? error.message : 'Failed to erase user themes.'
+      aboutOpen = true
+    }
   }
 
   // Install global keyboard shortcuts for the command palette.

@@ -85,6 +85,7 @@
   let highlightError = $state<string | null>(null)
   let highlightSaving = $state(false)
   let highlightThemeTimer: ReturnType<typeof setTimeout> | null = null
+  let teardownThemeEraseRefresh: (() => void) | null = null
   let highlightEditorRef = $state<{ focus: () => void } | null>(null)
   let highlightRestoreToken = $state(0)
   let lastFocusKey: string | null = null
@@ -513,6 +514,17 @@
   // Initialize the editor view on mount.
   onMount(() => {
     void loadThemes()
+    // Refresh theme data when user themes are erased from the command palette.
+    const onThemesErased = () => {
+      void loadThemes()
+    }
+    window.addEventListener('lush:themes-erased', onThemesErased as EventListener)
+    teardownThemeEraseRefresh = () => {
+      window.removeEventListener(
+        'lush:themes-erased',
+        onThemesErased as EventListener
+      )
+    }
 
     const persisted = readPersistedSelection()
     if (persisted) {
@@ -673,6 +685,7 @@
 
   // Tear down the editor view on destroy.
   onDestroy(() => {
+    if (teardownThemeEraseRefresh) teardownThemeEraseRefresh()
     view?.destroy()
     updateDebugView(null)
     updateDebugControls(null)

@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit'
 import { json } from '@sveltejs/kit'
 import {
+  eraseUserThemes,
   ensureThemesDir,
   listThemeNames,
   normalizeThemeName,
@@ -21,4 +22,14 @@ export const GET: RequestHandler = async ({ url }) => {
   }
   const themes = await listThemeNames()
   return json({ themes })
+}
+
+// Delete all user theme files under ~/.config/lush/themes.
+export const DELETE: RequestHandler = async () => {
+  try {
+    const deleted = await eraseUserThemes()
+    return json({ ok: true, deleted })
+  } catch {
+    return json({ error: 'Failed to erase user themes.' }, { status: 500 })
+  }
 }

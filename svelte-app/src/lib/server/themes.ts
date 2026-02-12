@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readdir, readFile, stat } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, stat, unlink } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -131,4 +131,14 @@ export async function listThemeNames(): Promise<string[]> {
     .filter((entry) => entry.endsWith('.yaml'))
     .map((entry) => entry.replace(/\.yaml$/i, ''))
     .sort((a, b) => a.localeCompare(b))
+}
+
+// Delete user theme yaml files from the user themes directory.
+export async function eraseUserThemes(): Promise<number> {
+  await ensureThemesDir()
+  const userDir = getUserThemesDir()
+  const entries = await readdir(userDir).catch(() => [])
+  const themeFiles = entries.filter((entry) => entry.endsWith('.yaml'))
+  await Promise.all(themeFiles.map((entry) => unlink(path.join(userDir, entry))))
+  return themeFiles.length
 }
