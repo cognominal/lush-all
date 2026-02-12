@@ -1,0 +1,9 @@
+# Best-effort approximation of VS Code Default Dark Modern + Svelte accents.
+.keyword: bold.yellow
+.operator: yellow
+.number: cyan
+.nakedstring: green
+.variable: white
+.punctuation: gray
+.comment: italic.gray
+leste.tag: bold.red
