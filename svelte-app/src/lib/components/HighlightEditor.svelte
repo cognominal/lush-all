@@ -41,9 +41,9 @@
   })
 
   // Commit the draft value when it changed.
-  function commitDraft(): void {
+  function commitDraft(force = false): void {
     if (!onCommit) return
-    if (draft === value) return
+    if (!force && draft === value) return
     onCommit(draft)
     startFocusSentinel()
   }
@@ -70,6 +70,19 @@
       debounceTimer = null
       commitDraft()
     }, 250)
+  }
+
+  // Commit on Enter, using placeholder suggestion when draft is empty.
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    if (!onCommit) return
+    if (!draft.trim() && placeholder.trim()) {
+      onCommit(placeholder)
+      startFocusSentinel()
+      return
+    }
+    commitDraft(true)
   }
 
   // Allow parent to restore focus after external updates.
@@ -113,6 +126,7 @@
       onfocus={handleFocus}
       oninput={handleInput}
       onblur={handleBlur}
+      onkeydown={handleKeydown}
     />
     {#if saving}
       <div class="text-[11px] uppercase tracking-[0.2em] text-surface-400">

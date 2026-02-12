@@ -95,6 +95,7 @@ function styleForChain(chain: string): Record<string, string> {
 export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
   const classByKey = new Map<string, string>()
   const classByChain = new Map<string, string>()
+  const chainByKey = new Map<string, string>()
   const themeSpec: Record<string, Record<string, string>> = {}
   let classIdx = 0
 
@@ -111,6 +112,8 @@ export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
 
   for (const [key, chain] of map.entries()) {
     const normalizedKey = normalizeKey(key)
+    chainByKey.set(normalizedKey, chain)
+    if (!chain.trim()) continue
     const className = classForChain(chain)
     classByKey.set(normalizedKey, className)
   }
@@ -119,20 +122,21 @@ export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
   function classFor(kind: string, type: string): string | null {
     const kindKey = kind.toLowerCase()
     const typeKey = type.toLowerCase()
-    const exact = `${kindKey}.${typeKey}`
-    const kindOnly = `${kindKey}.*`
-    const dotTypeOnly = `.${typeKey}`
-    const typeOnly = `*.${typeKey}`
-    const jsTypeFallback = `js.${typeKey}`
-
-    return (
-      classByKey.get(exact) ??
-      classByKey.get(kindOnly) ??
-      classByKey.get(dotTypeOnly) ??
-      classByKey.get(typeOnly) ??
-      classByKey.get(jsTypeFallback) ??
-      null
-    )
+    const candidates = [
+      `${kindKey}.${typeKey}`,
+      `${kindKey}.*`,
+      `.${typeKey}`,
+      `*.${typeKey}`,
+      `js.${typeKey}`
+    ]
+    // Skip empty style rules so wildcard fallbacks can still apply.
+    for (const key of candidates) {
+      const chain = chainByKey.get(key)
+      if (typeof chain === 'string' && !chain.trim()) continue
+      const className = classByKey.get(key)
+      if (className) return className
+    }
+    return null
   }
 
   return { classFor, themeSpec }

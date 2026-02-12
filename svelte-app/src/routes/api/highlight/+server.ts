@@ -23,22 +23,32 @@ function normalizeKey(value: string): string {
 // Convert a YAML mapping into a normalized string map.
 function parseHighlightYaml(text: string): Map<string, string> {
   if (!text.trim()) return new Map()
-  const parsed = parse(text) as unknown
-  if (!parsed || typeof parsed !== 'object') return new Map()
-  const map = new Map<string, string>()
-  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (typeof value === 'string') {
-      map.set(normalizeKey(key), value)
+  try {
+    const parsed = parse(text) as unknown
+    if (!parsed || typeof parsed !== 'object') return new Map()
+    const map = new Map<string, string>()
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'string') {
+        map.set(normalizeKey(key), value)
+        continue
+      }
+      if (value === null) {
+        map.set(normalizeKey(key), '')
+      }
     }
+    return map
+  } catch {
+    return new Map()
   }
-  return map
 }
 
 // Serialize highlight entries with alphabetized keys.
 function serializeHighlightYaml(map: Map<string, string>): string {
   const entries = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
   if (entries.length === 0) return ''
-  return `${entries.map(([key, value]) => `${key}: ${value}`).join('\n')}\n`
+  return `${entries
+    .map(([key, value]) => `${key}: ${value === '' ? "''" : value}`)
+    .join('\n')}\n`
 }
 
 // Parse and validate the incoming highlight update payload.
@@ -68,21 +78,27 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: 'Highlight key is required.' }, { status: 400 })
   }
 
-  await ensureThemesDir()
-  const themeName = normalizeThemeName(payload.theme) || 'default'
-  const hasTheme = await ensureThemeFile(themeName)
-  if (!hasTheme) {
-    return json({ error: 'Theme not found.' }, { status: 404 })
-  }
-  const highlightPath = getThemePath(themeName)
-  const currentText = await readFile(highlightPath, 'utf8')
-  const map = parseHighlightYaml(currentText)
-  if (payload.value.trim()) {
-    map.set(nextKey, payload.value.trim())
-  } else {
-    map.delete(nextKey)
-  }
+  try {
+    await ensureThemesDir()
+    const themeName = normalizeThemeName(payload.theme) || 'default'
+    const hasTheme = await ensureThemeFile(themeName)
+    if (!hasTheme) {
+      return json({ error: 'Theme not found.' }, { status: 404 })
+    }
+    const highlightPath = getThemePath(themeName)
+    const currentText = await readFile(highlightPath, 'utf8')
+    const map = parseHighlightYaml(currentText)
+    if (payload.value === '') {
+      map.set(nextKey, '')
+    } else if (payload.value.trim()) {
+      map.set(nextKey, payload.value.trim())
+    } else {
+      map.delete(nextKey)
+    }
 
-  await writeFile(highlightPath, serializeHighlightYaml(map), 'utf8')
-  return json({ ok: true })
+    await writeFile(highlightPath, serializeHighlightYaml(map), 'utf8')
+    return json({ ok: true })
+  } catch {
+    return json({ error: 'Failed to persist highlight update.' }, { status: 500 })
+  }
 }

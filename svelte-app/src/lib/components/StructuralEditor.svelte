@@ -81,6 +81,7 @@
   let highlightThemes = $state<string[]>([])
   let highlightKey = $state<string | null>(null)
   let highlightLine = $state('')
+  let highlightPlaceholder = $state('No highlight match')
   let highlightError = $state<string | null>(null)
   let highlightSaving = $state(false)
   let highlightThemeTimer: ReturnType<typeof setTimeout> | null = null
@@ -734,13 +735,17 @@
     const kind = node.kind.toLowerCase()
     const type = node.type.toLowerCase()
     const exact = `${kind}.${type}`
-    if (map.has(exact)) return exact
+    if (map.get(exact)?.trim()) return exact
     const kindOnly = `${kind}.*`
-    if (map.has(kindOnly)) return kindOnly
+    if (map.get(kindOnly)?.trim()) return kindOnly
     const dotTypeOnly = `.${type}`
-    if (map.has(dotTypeOnly)) return dotTypeOnly
+    if (map.get(dotTypeOnly)?.trim()) return dotTypeOnly
     const typeOnly = `*.${type}`
-    if (map.has(typeOnly)) return typeOnly
+    if (map.get(typeOnly)?.trim()) return typeOnly
+    if (map.get(exact) !== undefined) return exact
+    if (map.get(kindOnly) !== undefined) return kindOnly
+    if (map.get(dotTypeOnly) !== undefined) return dotTypeOnly
+    if (map.get(typeOnly) !== undefined) return typeOnly
     return null
   }
 
@@ -748,8 +753,9 @@
   // Format the highlight line for display.
   function formatHighlightLine(map: HighlightMap, key: string | null): string {
     if (!key) return ''
-    const value = map.get(key)
-    if (!value) return ''
+    if (!map.has(key)) return ''
+    const value = map.get(key) ?? ''
+    if (!value) return `${key}:`
     return `${key}: ${value}`
   }
 
@@ -763,7 +769,6 @@
     const key = trimmed.slice(0, colonIndex).trim().toLowerCase()
     const value = trimmed.slice(colonIndex + 1).trim()
     if (!key) return null
-    if (!value) return null
     return { key, value }
   }
 
@@ -785,6 +790,16 @@
     return false
   }
 
+  // Build exact and wildcard key suggestions for a token.
+  function suggestedKeysForNode(
+    node: SusyNode | null | undefined
+  ): { exact: string; wildcard: string } | null {
+    if (!node) return null
+    const kind = node.kind.toLowerCase()
+    const type = node.type.toLowerCase()
+    return { exact: `${kind}.${type}`, wildcard: `*.${type}` }
+  }
+
   // Validate a style chain against known highlight tokens.
   function isValidHighlightStyle(value: string): boolean {
     const rawParts = value.split('.')
@@ -801,7 +816,9 @@
       a.localeCompare(b)
     )
     if (entries.length === 0) return ''
-    return `${entries.map(([key, value]) => `${key}: ${value}`).join('\n')}\n`
+    return `${entries
+      .map(([key, value]) => `${key}: ${value === '' ? "''" : value}`)
+      .join('\n')}\n`
   }
 
   // Sync the highlight line with the selected token.
@@ -816,6 +833,12 @@
     const node = getNodeByPath(nextState.root, nextState.currentTokPath)
     const nextKey = resolveHighlightKey(highlightMap, node)
     highlightKey = nextKey
+    const suggested = suggestedKeysForNode(node)
+    highlightPlaceholder = nextKey
+      ? 'No highlight match'
+      : suggested
+        ? `${suggested.exact}:`
+        : 'No highlight match'
     syncHighlightLine(formatHighlightLine(highlightMap, nextKey))
   }
 
@@ -860,26 +883,69 @@
       highlightError = 'Highlight key must match the selected token.'
       return
     }
-    if (!isValidHighlightStyle(update.value)) {
+    const suggestions = suggestedKeysForNode(selectedNode)
+    if (!suggestions) {
+      highlightError = 'No selected token for highlight update.'
+      return
+    }
+    if (update.value && !isValidHighlightStyle(update.value)) {
       highlightError = 'Style must use known tokens like "blue.bold.underline".'
       return
     }
     const nextMap = new Map(highlightMap)
-    nextMap.set(update.key, update.value)
+    let persistedKey = canonicalHighlightKey(update.key)
+    if (persistedKey.startsWith('.')) {
+      nextMap.delete(`*.${persistedKey.slice(1)}`)
+    } else if (persistedKey.startsWith('*.')) {
+      nextMap.delete(`.${persistedKey.slice(2)}`)
+      persistedKey = canonicalHighlightKey(persistedKey)
+    }
+    const isSecondEnterCycle =
+      update.value === '' &&
+      canonicalHighlightKey(update.key) === canonicalHighlightKey(suggestions.exact) &&
+      highlightKey !== null &&
+      canonicalHighlightKey(highlightKey) === canonicalHighlightKey(suggestions.exact) &&
+      (highlightMap.get(highlightKey) ?? '') === ''
+    let persistedValue = update.value
+    if (isSecondEnterCycle) {
+      nextMap.delete(suggestions.exact)
+      persistedKey = suggestions.wildcard
+      persistedValue = ''
+    }
+    persistedKey = canonicalHighlightKey(persistedKey)
+    if (persistedKey.startsWith('.')) {
+      nextMap.delete(`*.${persistedKey.slice(1)}`)
+    }
+    // Let non-empty wildcard styles take effect by clearing an empty exact blocker.
+    if (
+      persistedValue !== '' &&
+      canonicalHighlightKey(persistedKey) ===
+        canonicalHighlightKey(suggestions.wildcard)
+    ) {
+      const exactKey = canonicalHighlightKey(suggestions.exact)
+      if ((nextMap.get(exactKey) ?? '') === '') {
+        nextMap.delete(exactKey)
+      }
+    }
+    nextMap.set(persistedKey, persistedValue)
     const nextYaml = serializeHighlightYaml(nextMap)
     highlightSaving = true
     try {
       const response = await fetch('/api/highlight', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...update, theme: highlightThemeName })
+        body: JSON.stringify({
+          key: persistedKey,
+          value: persistedValue,
+          theme: highlightThemeName
+        })
       })
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || 'Failed to save highlight.')
       }
       highlightYamlText = nextYaml
-      syncHighlightLine(formatHighlightLine(nextMap, update.key))
+      syncHighlightLine(formatHighlightLine(nextMap, persistedKey))
       scheduleHighlightThemeRefresh()
       highlightRestoreToken += 1
     } catch (error) {
@@ -936,6 +1002,7 @@
         <HighlightEditor
           bind:this={highlightEditorRef}
           value={highlightLine}
+          placeholder={highlightPlaceholder}
           saving={highlightSaving}
           error={highlightError}
           restoreToken={highlightRestoreToken}
