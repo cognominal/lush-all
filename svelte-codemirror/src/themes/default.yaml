@@ -1,3 +1,5 @@
 js.keyword: bold.blue
 js.variable: italic
 leste.tag: bold.underline.red
+.keyword: bold.underline.red
+.nakedstring: bold.black.bg-yellow

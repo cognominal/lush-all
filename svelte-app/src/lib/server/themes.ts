@@ -23,19 +23,69 @@ export function normalizeThemeName(value: string): string {
   return value.trim().replace(/[^a-z0-9-_]/gi, '').toLowerCase()
 }
 
+// Parse a simple YAML map (key: value) into a normalized string map.
+function parseThemeYamlMap(text: string): Map<string, string> {
+  const map = new Map<string, string>()
+  const lines = text.split(/\r?\n/)
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const colon = trimmed.indexOf(':')
+    if (colon <= 0) continue
+    const key = trimmed.slice(0, colon).trim().toLowerCase()
+    const value = trimmed.slice(colon + 1).trim()
+    if (!key || !value) continue
+    map.set(key, value)
+  }
+  return map
+}
+
+// Serialize a normalized theme map as sorted YAML key/value lines.
+function serializeThemeYamlMap(map: Map<string, string>): string {
+  const entries = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
+  if (entries.length === 0) return ''
+  return `${entries.map(([key, value]) => `${key}: ${value}`).join('\n')}\n`
+}
+
+// Merge missing keys from the repo theme into the user theme without overrides.
+async function mergeMissingThemeDefaults(repoPath: string, userPath: string): Promise<void> {
+  const [repoText, userText] = await Promise.all([
+    readFile(repoPath, 'utf8'),
+    readFile(userPath, 'utf8')
+  ])
+  const repoMap = parseThemeYamlMap(repoText)
+  if (repoMap.size === 0) return
+  const userMap = parseThemeYamlMap(userText)
+  let changed = false
+  for (const [key, value] of repoMap.entries()) {
+    if (userMap.has(key)) continue
+    userMap.set(key, value)
+    changed = true
+  }
+  if (!changed) return
+  await import('node:fs/promises').then(({ writeFile }) =>
+    writeFile(userPath, serializeThemeYamlMap(userMap), 'utf8')
+  )
+}
+
 // Ensure the user themes directory exists and has defaults.
 export async function ensureThemesDir(): Promise<void> {
   const userDir = getUserThemesDir()
   await mkdir(userDir, { recursive: true })
-  const entries = await readdir(userDir).catch(() => [])
-  const hasYaml = entries.some((entry) => entry.endsWith('.yaml'))
-  if (hasYaml) return
   const repoDir = getRepoThemesDir()
   const repoEntries = await readdir(repoDir).catch(() => [])
+  const themeFiles = repoEntries.filter((entry) => entry.endsWith('.yaml'))
   await Promise.all(
-    repoEntries
-      .filter((entry) => entry.endsWith('.yaml'))
-      .map((entry) => copyFile(path.join(repoDir, entry), path.join(userDir, entry)))
+    themeFiles.map(async (entry) => {
+      const repoPath = path.join(repoDir, entry)
+      const userPath = path.join(userDir, entry)
+      try {
+        await stat(userPath)
+        await mergeMissingThemeDefaults(repoPath, userPath)
+      } catch {
+        await copyFile(repoPath, userPath)
+      }
+    })
   )
 }
 
@@ -49,13 +99,14 @@ export function getThemePath(themeName: string): string {
 export async function ensureThemeFile(themeName: string): Promise<boolean> {
   const safeName = normalizeThemeName(themeName) || 'default'
   const userPath = getThemePath(safeName)
+  const repoPath = path.join(getRepoThemesDir(), `${safeName}.yaml`)
   try {
     await stat(userPath)
+    await mergeMissingThemeDefaults(repoPath, userPath).catch(() => {})
     return true
   } catch {
     // fall through
   }
-  const repoPath = path.join(getRepoThemesDir(), `${safeName}.yaml`)
   try {
     await copyFile(repoPath, userPath)
     return true

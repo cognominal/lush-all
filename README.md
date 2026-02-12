@@ -68,6 +68,8 @@ See [svelte-app/app.md](svelte-app/app.md])
   Tauri dev)
 - `tauri-auth-server.md` — “no limitation” Tauri build that bundles a
   local server (`bun run build:tauri:auth`)
+- `docs/highlighting-themes.md` — Highlight selector keys, precedence,
+  and theme style chains.
 
 ## Monorepo Layout
 

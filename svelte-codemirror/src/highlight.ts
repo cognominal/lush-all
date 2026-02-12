@@ -20,6 +20,19 @@ const colorMap: Record<string, string> = {
   black: 'rgb(17, 24, 39)'
 }
 
+const backgroundColorMap: Record<string, string> = {
+  blue: 'rgba(59, 130, 246, 0.2)',
+  red: 'rgba(239, 68, 68, 0.2)',
+  green: 'rgba(34, 197, 94, 0.2)',
+  yellow: 'rgba(234, 179, 8, 0.2)',
+  gray: 'rgba(156, 163, 175, 0.2)',
+  grey: 'rgba(156, 163, 175, 0.2)',
+  cyan: 'rgba(34, 211, 238, 0.2)',
+  magenta: 'rgba(217, 70, 239, 0.2)',
+  white: 'rgba(255, 255, 255, 0.2)',
+  black: 'rgba(17, 24, 39, 0.25)'
+}
+
 // Normalize highlight keys for consistent lookup.
 function normalizeKey(key: string): string {
   return key.trim().toLowerCase()
@@ -65,6 +78,12 @@ function styleForChain(chain: string): Record<string, string> {
       style.textDecoration = 'underline'
       continue
     }
+    if (segment.startsWith('bg-')) {
+      const bgName = segment.slice('bg-'.length)
+      const background = backgroundColorMap[bgName]
+      if (background) style.backgroundColor = background
+      continue
+    }
     const color = colorMap[segment]
     if (color) style.color = color
   }
@@ -102,12 +121,16 @@ export function createHighlightRegistry(map: HighlightMap): HighlightRegistry {
     const typeKey = type.toLowerCase()
     const exact = `${kindKey}.${typeKey}`
     const kindOnly = `${kindKey}.*`
+    const dotTypeOnly = `.${typeKey}`
     const typeOnly = `*.${typeKey}`
+    const jsTypeFallback = `js.${typeKey}`
 
     return (
       classByKey.get(exact) ??
       classByKey.get(kindOnly) ??
+      classByKey.get(dotTypeOnly) ??
       classByKey.get(typeOnly) ??
+      classByKey.get(jsTypeFallback) ??
       null
     )
   }

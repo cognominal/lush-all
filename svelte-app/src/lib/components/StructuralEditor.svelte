@@ -641,7 +641,7 @@
               borderLeftColor: 'rgba(56, 189, 248, 0.95)'
             },
             '.cm-structural-focus': {
-              backgroundColor: 'rgba(56, 189, 248, 0.18)',
+              backgroundColor: 'transparent',
               outline: '1px solid rgba(56, 189, 248, 0.6)',
               borderRadius: '3px'
             },
@@ -737,6 +737,8 @@
     if (map.has(exact)) return exact
     const kindOnly = `${kind}.*`
     if (map.has(kindOnly)) return kindOnly
+    const dotTypeOnly = `.${type}`
+    if (map.has(dotTypeOnly)) return dotTypeOnly
     const typeOnly = `*.${type}`
     if (map.has(typeOnly)) return typeOnly
     return null
@@ -763,6 +765,24 @@
     if (!key) return null
     if (!value) return null
     return { key, value }
+  }
+
+  // Normalize equivalent wildcard kind keys (e.g. *.type and .type).
+  function canonicalHighlightKey(key: string): string {
+    const normalized = key.trim().toLowerCase()
+    if (normalized.startsWith('*.')) return `.${normalized.slice(2)}`
+    return normalized
+  }
+
+  // Check whether a highlight selector key applies to a token.
+  function keyMatchesNode(key: string, node: SusyNode): boolean {
+    const normalized = canonicalHighlightKey(key)
+    const kind = node.kind.toLowerCase()
+    const type = node.type.toLowerCase()
+    if (normalized === `${kind}.${type}`) return true
+    if (normalized === `${kind}.*`) return true
+    if (normalized === `.${type}`) return true
+    return false
   }
 
   // Validate a style chain against known highlight tokens.
@@ -835,7 +855,8 @@
       highlightError = 'Enter a highlight entry like "kind.type: style".'
       return
     }
-    if (!highlightKey || update.key !== highlightKey) {
+    const selectedNode = getNodeByPath(editorState.root, editorState.currentTokPath)
+    if (!selectedNode || !keyMatchesNode(update.key, selectedNode)) {
       highlightError = 'Highlight key must match the selected token.'
       return
     }

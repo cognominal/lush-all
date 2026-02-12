@@ -1,73 +1,40 @@
-# Projection DSL (Indent Blocks)
+# Projection DSL
 
-This document defines an indentation-first projection DSL that describes
-how to generated ts code for Susy posh
-projections. This DSL is rule based, so the suffix is `.ruleproj`.
-It is designed for block structures, with inline structures
-remaining single-line. It targets projectional editing, not parsing.
+This document describes the ruleproj DSL as it is implemented now in this
+repository.
 
-## Projection Definition
+Implementation references:
 
-A projection maps an Astre (augmented syntax tree) into a Susy
-representation suitable for editing with lushed, which keeps that
-astre in sync. Susy projections can target different surface syntaxes
-(leste, yaml, etc.), not only leste. It is a structured, reversible
-view, not a parser.
-The point of lushed is to let the user interact with a posh projection
-and keep the corresponding astre in sync, without parsing.
+- `/Users/cog/mine/lush-all/lush-types/ruleproj.ts`
+- `/Users/cog/mine/lush-all/lush-types/susy-svelte-leste-projection.ts`
 
-Should we call this “astral projection” in docs and UI? If we do,
-we should use it consistently and avoid mixing terms.
+## Implemented Now
 
-## Goals and means
+### Scope
 
-- Define projections as data, not ad-hoc functions.
-- Use indentation as syntax for blocks, without explicit open or close tokens.
-- Keep inline structures single-line and brace-free.
-- Support quote and unquote style templating without full macros.
-- The NakedString SusyNode type and its posh representation avoid to quote strings
-- Be language-agnostic, then specialize with per-language rule sets.
+The current implementation supports a runtime-interpreted projection pipeline
+for Svelte HTML-like nodes:
 
-## Core Model
+1. Parse Svelte source.
+2. Normalize into a small Astre shape (`Fragment`, `Element`, `Text`).
+3. Parse `.ruleproj` text into rules.
+4. Match rules in order (first match wins).
+5. Emit Leste Susy tokens.
 
-The rule engine takes:
+This is an interpreter path. There is no code generation step from `.ruleproj`
+to TypeScript in the current implementation.
 
-- An AST (Astre) with stable node kinds and fields.
-- A rule set that projects a node into Susy lines.
-- A channel budget that controls indentation, text, and style.
+### Rule File Structure
 
-Rules are ordered. The first matching rule wins.
+A rule file is indentation-based and uses these sections:
 
-## Naming and Embedding
+- `rule <Name>`
+- `match`
+- `emit`
 
-`kt` is a combined key in the form `KindName.TypeName`, joined by a dot.
-A single AST node
-can be embedded in multiple contexts and take on different `kt` values,
-including double embedding (e.g., a TypeScript variable embedded in an
-augmented YAML Astre, itself embedded in an augmented Acorn Astre).
+Example:
 
-This DSL is also edited as a projection, so string literals are naked by
-default and do not require quotes.
-
-## Ruleproj to TypeScript
-
-`.ruleproj` files are turned into TypeScript by a small compiler.
-But see the [dog food plan](#ruleproj-dogfood-plan) to do the same from the susy.
-Today the pipeline is:
-
-1. `parseRuleproj` tokenizes and parses the DSL into rule objects.
-2. Rule objects are matched against a normalized Astre node.
-3. The selected rule emits Susy tokens and lines.
-
-In code, the implementation lives in:
-
-- `/Users/cog/mine/lush-all/lush-types/ruleproj.ts` for parsing.
-- `/Users/cog/mine/lush-all/lush-types/susy-svelte-leste-projection.ts` for
-  rule application.
-
-Example (`svelte-leste.ruleproj`):
-
-```
+```ruleproj
 rule Text
   match
     type: Text
@@ -76,339 +43,114 @@ rule Text
     line: text($text)
 ```
 
-The generated TypeScript logic is equivalent to:
+### Match Fields
 
-```
-if (node.type === 'Text') {
-  const text = node.data
-  return renderTextTokens(text)
-}
-```
+Supported `match` keys:
 
-The compiler is intentionally small and explicit: it maps DSL `match`
-fields to structured predicates and maps `emit` expressions to token
-builders. This keeps the generated code easy to inspect and adjust.
+- `type`
+- `name`
+- `data`
+- `attrs`
+- `children`
+- `where`
 
-## Current DSL Support
+Value forms:
 
-The current ruleproj parser supports:
+- Literal: `type: Text`
+- Capture: `type: $nodeType`
 
-- Match fields: `type`, `name`, `data`, `attrs`, `children`, `where`.
-- Where predicates: `inlineTag($name)`, `blockTag($name)`.
-- Emit expressions: `tag($name)`.
-- Emit expressions: `text($text)`.
-- Emit expressions: `inlineTag($name, $kids)`.
-- Emit expressions: `tagWithAttrs($name, $attrs)`.
-- Emit expressions: `inlineTagWithAttrs($name, $attrs, $kids)`.
-- Emit blocks: `line:` with optional `block` and `each:` for lists.
+### Where Predicates
 
-## Ruleproj Dogfood Plan
+Supported `where` predicates:
 
-We want to use `.ruleproj` to generate the code that parses `.ruleproj`
-files and to project ruleproj Astres themselves.
+- `inlineTag($capture)`
+- `blockTag($capture)`
 
-Plan:
+Notes:
 
-1. Use a `.ruleproj` to generate `ruleproj2.ts`, the parser for
-   `.ruleproj`.
-2. Define a projection format for `.ruleproj` and generate projections
-   from ruleproj Astres.
-3. Define `.ruleproj.yaml` as the YAML serialization of the Astre for
-   the corresponding `.ruleproj` file.
+- The argument must be a capture reference.
+- Predicate names are fixed to the two forms above.
 
-Mermaid overview:
+### Emit Forms
 
-```mermaid
-graph TD
-  A[".ruleproj"] -->|parse| B["ruleproj Astre"]
-  B -->|serialize| C[".ruleproj.yaml"]
-  B -->|project| D["Susy projection"]
-  D -->|lushed update| L((lushed))
-  L -->|apply edits| B
-  A -->|compile| E["ruleproj2.ts"]
-  E -->|parse| B
-```
+Supported `emit` structure:
 
-## Current Svelte Wiring
+- `line: <emit-expr>`
+- Optional `block` plus `each: $capture`
 
-The Svelte editor now prefers a `.ruleproj`-driven projection when one
-is available. The legacy `susySvelteProjection` code path is kept as a
-fallback when no ruleproj text is present.
+Supported emit expressions:
 
-The default rule set is loaded from:
+- `tag($name)`
+- `text($text)`
+- `inlineTag($name, $kids)`
+- `tagWithAttrs($name, $attrs)`
+- `inlineTagWithAttrs($name, $attrs, $kids)`
 
-- `/Users/cog/mine/lush-all/svelte-app/src/lib/samples/svelte-leste.ruleproj`
+If `block` is present, `each:` is required and must reference a capture.
 
-## DSL Overview
+### Runtime Behavior
 
-The DSL is indentation-based and uses `rule`, `match`, and `emit`.
-The `emit` block is a template with splice points.
+- Rules are tried in file order.
+- The first matching rule is used.
+- If no rule matches a node, children are traversed when available.
+- Emission creates Leste tokens of types:
+  - `tag`
+  - `NakedString`
+  - `Space`
 
-Example:
+### Current Svelte Rule Set Example
 
-```
+`/Users/cog/mine/lush-all/lush-types/projections/svelte-leste.ruleproj`:
+
+```ruleproj
 rule ElementBlock
   match
-    kt: "Svelte.Element"
+    type: Element
     name: $name
     attrs: $attrs
-    kids: $kids
-    where: count($kids) > 0
+    children: $kids
+    where: blockTag($name)
   emit
-    line: tag($name) + attrs($attrs)
+    line: tagWithAttrs($name, $attrs)
     block
       each: $kids
-```
 
-## Syntax
-
-Rule header:
-
-```
-rule RuleName
-  match
-    kt: "KindName.TypeName"
-    field: $capture
-    where: predicate($capture)
-  emit
-    line: "text " + $capture
-```
-
-Captures:
-
-- `$name` captures a field or subnode.
-- `$...` indicates a list capture.
-- `where:` is a boolean guard.
-
-Emit templates:
-
-- `line:` renders a single line.
-- `block` creates an indented block.
-- `each:` projects a list of nodes.
-- `node:` projects a single node.
-- `text:` renders raw text.
-
-Template helpers:
-
-- `tag(name)` renders a tag token with style.
-- `attrs(list)` renders attributes using a shared style policy.
-- `join(list, ", ")` joins text with a separator.
-- `indent()` returns the current indentation.
-
-## Quote and Unquote
-
-Quote and unquote are template operations, not macros.
-
-- Quote is any `emit` template.
-- Unquote is any `$capture` or `node:` insertion.
-
-Example:
-
-```
-rule IfBlock
-  match
-    kt: "Ts.If"
-    test: $test
-    then: $then
-    else: $else
-  emit
-    line: "if " + expr($test)
-    block
-      node: $then
-    when: $else
-      line: "else"
-      block
-        node: $else
-```
-
-## Hygiene
-
-Hygienic macros are only needed when a rule introduces new bindings.
-Most projection rules do not create identifiers, so hygiene can be optional.
-
-If hygiene is needed:
-
-- `fresh("name")` produces a unique identifier.
-- `bind(name, node)` scopes a name to a subtree.
-- `capture(name)` resolves to a scoped binding.
-
-## Blocks vs Inline
-
-Rules choose block or inline output:
-
-- Inline: single line, no indentation.
-- Block: `line` header plus an indented `block`.
-
-Rules can use size guards:
-
-```
-where: fitsInline($kids, 40)
-```
-
-If the guard fails, a later rule can emit a block version.
-
-## Svelte Rule Set
-
-This section applies the DSL to Svelte with indentation syntax for tags
-and braces.
-
-### Elements
-
-Inline elements render a single line with inlined children:
-
-```
 rule ElementInline
   match
-    kt: "Svelte.Element"
+    type: Element
     name: $name
     attrs: $attrs
-    kids: $kids
-    where: fitsInline($kids, 40)
+    children: $kids
+    where: inlineTag($name)
   emit
-    line: tag($name) + attrs($attrs) + inlineKids($kids)
-```
+    line: inlineTagWithAttrs($name, $attrs, $kids)
 
-Block elements render a header line and an indented body.
-No closing tag is emitted.
-
-```
-rule ElementBlock
-  match
-    kt: "Svelte.Element"
-    name: $name
-    attrs: $attrs
-    kids: $kids
-  emit
-    line: tag($name) + attrs($attrs)
-    block
-      each: $kids
-```
-
-### Text
-
-```
 rule Text
   match
-    kt: "Svelte.Text"
-    value: $value
+    type: Text
+    data: $text
   emit
-    line: $value
+    line: text($text)
 ```
 
-### Svelte Blocks
+### Known Limits
 
-```
-rule IfBlock
-  match
-    kt: "Svelte.IfBlock"
-    test: $test
-    then: $then
-    else: $else
-  emit
-    line: "{#if " + expr($test) + "}"
-    block
-      node: $then
-    when: $else
-      line: "{:else}"
-      block
-        node: $else
-```
+- No `kt` field support.
+- No boolean expression language in `where`.
+- No helpers like `join`, `indent`, `fitsInline`, `count`, `expr`, `attr`.
+- No `node:` / `text:` / `when:` directives in `emit`.
+- No macro system (quote/unquote/hygiene).
+- No `.ruleproj` to `.ts` compiler step.
 
-The braces remain in the projection but indentation replaces the end tags.
-If you want braces removed as well, use a second projection profile:
+## Future Ideas
 
-```
-rule IfBlockNoBraces
-  match
-    kt: "Svelte.IfBlock"
-    test: $test
-    then: $then
-    else: $else
-  emit
-    line: "if " + expr($test)
-    block
-      node: $then
-    when: $else
-      line: "else"
-      block
-        node: $else
-```
+The items below are design goals, not implemented behavior.
 
-### Script Blocks
-
-Script blocks use indentation instead of braces for TypeScript.
-
-```
-rule ScriptBlock
-  match
-    kt: "Svelte.Script"
-    lang: $lang
-    body: $body
-  emit
-    line: "script " + attr("lang", $lang)
-    block
-      node: $body
-```
-
-```
-rule TsBlock
-  match
-    kt: "Ts.Block"
-    kids: $kids
-  emit
-    block
-      each: $kids
-```
-
-```
-rule TsIf
-  match
-    kt: "Ts.If"
-    test: $test
-    then: $then
-    else: $else
-  emit
-    line: "if " + expr($test)
-    block
-      node: $then
-    when: $else
-      line: "else"
-      block
-        node: $else
-```
-
-## Example Output
-
-Example Svelte:
-
-```
-<script lang="ts">
-  if (ready) {
-    count += 1
-  }
-</script>
-
-<div class="wrap">
-  <h1>{title}</h1>
-  <p>{subtitle}</p>
-</div>
-```
-
-Projected Susy:
-
-```
-script lang=ts
-  if ready
-    count += 1
-
-div .wrap
-  h1 {title}
-  p {subtitle}
-```
-
-## Next Steps
-
-- Expand rule coverage for more Svelte node types.
-- Add richer `where` predicates and helper functions.
-- Support multi-line emit templates and spans.
-- Keep growing the `.ruleproj` samples.
+- Broaden the DSL from Svelte HTML subset to more languages and node kinds.
+- Add richer `where` expressions and helper functions.
+- Add additional `emit` directives such as `node`, `text`, and conditional
+  branches.
+- Support inline-vs-block heuristics (for example size-based guards).
+- Add macro-like templating features if needed.
+- Add a compilation pipeline that generates TypeScript from `.ruleproj`.
+- Dogfood projection for `.ruleproj` itself, including an Astre/YAML form.
