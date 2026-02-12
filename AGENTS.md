@@ -101,3 +101,12 @@ Tauri one
   previous day (or days if missing), using the daily summaries in
   `day-summary/`. If a day has very few entries, fewer than 5 lines is
   acceptable. If no entries, just say so.
+
+## TBD tracking
+
+- Keep a root file at `TBD.md` with sections per Codex session and a
+  `Left To Do` checklist for each section.
+- When I ask `save TBD`, append or update a section in `TBD.md` for the
+  current session with remaining tasks, blockers, and next actions.
+- Use the session summary timestamp format (`yy-mm-dd-hh:mm`) as the
+  session name when possible.
