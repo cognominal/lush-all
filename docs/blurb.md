@@ -2,10 +2,12 @@
 
 Fulfilling Larry Wall's aspiration of meshing language and evolving them.
 
-- from nushell and jq, and using coroutines, it supports typed pipes (done for json) of
+- from nushell and jq, and using coroutines, it supports typed pipes
+(done for json) of
   infinite steams.
-- with an adapted YAML (WIP) called lyaml (for lush yaml), to interpolate or match variables.
-- styled forts as syntax as a vector of better expressivity,
+- with an adapted YAML (WIP) called lyaml (for lush yaml),
+  to interpolate or match variables.
+- styled fonts as syntax as a vector of better expressivity,
 - lushed, a mostly structural editor. The ecosystem had to thought with the language.
 
 ## images
@@ -35,6 +37,7 @@ valid. Stable node identities (naids) and symbol identities (saids) enable
 reliable structural diffing, lineage tracking via paids, and robust
 refactoring semantics.
 I
+
 ## GUI and TUI
 
 Lush targets rich GUI environments (e.g., Monaco (TBD), CodeMirror (in

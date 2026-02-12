@@ -30,6 +30,10 @@
 = Use tailwind css for new code.
 - Commit messages should include details in the body by default.
 
+## Glossary
+
+`docs/glossary.md` contains the terms relevant to the current project
+
 ## Acting on prompt
 
 Always reformulate before acting.
