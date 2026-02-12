@@ -52,6 +52,7 @@
     DEFAULT_LANGUAGE,
     DEFAULT_SAMPLE_OPTION,
     LANGUAGE_OPTIONS,
+    type PersistedEditorSelection,
     SAMPLE_OPTIONS,
     STORAGE_KEY,
     findRuleprojSamplePath,
@@ -59,7 +60,7 @@
     getProjectionForLanguage,
     normalizeLanguage,
     projectSource,
-    readPersistedSelection,
+    readPersistedEditorSession,
     type ProjectionLanguage,
     sampleContent
   } from '$lib/logic/structuralEditorSamples'
@@ -320,7 +321,14 @@
   let sourceText = $state('')
   let sourceLanguage = $state<ProjectionLanguage>(DEFAULT_LANGUAGE)
   let selectedSample = $state(DEFAULT_SAMPLE_OPTION)
+  let selectedSampleMtimeMs = $state<number | null>(null)
   let ruleprojText = $state<string | null>(null)
+  let pendingSelectionRestore = $state<{
+    sample: string
+    sampleMtimeMs: number | null
+    selection: PersistedEditorSelection
+  } | null>(null)
+  let preferredThemeName = $state<string | null>(null)
   const FILTERED_SAMPLE_OPTIONS = $derived(
     SAMPLE_OPTIONS.filter(
       (option) => option.supported && option.language === sourceLanguage
@@ -382,15 +390,87 @@
     updateLanguage(option.language)
   }
 
+  // Read the current projection editor selection for persistence.
+  function getPersistedSelection(): PersistedEditorSelection | null {
+    if (!view) return null
+    const main = view.state.selection.main
+    return { anchor: main.anchor, head: main.head }
+  }
+
+  // Persist the current editor session in local storage.
   function persistSelection(): void {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ language: sourceLanguage, sample: selectedSample })
+        JSON.stringify({
+          language: sourceLanguage,
+          sample: selectedSample,
+          theme: highlightThemeName,
+          sampleMtimeMs: selectedSampleMtimeMs,
+          selection: getPersistedSelection()
+        })
       )
     } catch {
       // ignore storage errors
     }
+  }
+
+  // Request the selected sample's last-modified timestamp from the server.
+  async function loadSampleMtimeMs(sample: string): Promise<number | null> {
+    if (!sample) return null
+    try {
+      const response = await fetch(
+        `/api/editor-sample-meta?sample=${encodeURIComponent(sample)}`
+      )
+      if (!response.ok) return null
+      const data = (await response.json()) as { mtimeMs?: number }
+      return typeof data.mtimeMs === 'number' && Number.isFinite(data.mtimeMs)
+        ? data.mtimeMs
+        : null
+    } catch {
+      return null
+    }
+  }
+
+  // Restore a persisted selection only when the selected sample is unchanged.
+  function restorePersistedSelectionIfValid(): void {
+    if (!pendingSelectionRestore || !view) return
+    if (pendingSelectionRestore.sample !== selectedSample) {
+      pendingSelectionRestore = null
+      return
+    }
+    if (
+      pendingSelectionRestore.sampleMtimeMs !== null &&
+      selectedSampleMtimeMs === null
+    ) {
+      return
+    }
+    if (
+      pendingSelectionRestore.sampleMtimeMs !== null &&
+      selectedSampleMtimeMs !== null &&
+      pendingSelectionRestore.sampleMtimeMs !== selectedSampleMtimeMs
+    ) {
+      pendingSelectionRestore = null
+      return
+    }
+    const docLength = view.state.doc.length
+    const anchor = clamp(pendingSelectionRestore.selection.anchor, 0, docLength)
+    const head = clamp(pendingSelectionRestore.selection.head, 0, docLength)
+    pendingSelectionRestore = null
+    view.dispatch({ selection: { anchor, head } })
+  }
+
+  // Refresh sample metadata whenever the selected sample changes.
+  async function refreshSampleMtime(sample: string): Promise<void> {
+    if (!sample) {
+      selectedSampleMtimeMs = null
+      restorePersistedSelectionIfValid()
+      return
+    }
+    const mtimeMs = await loadSampleMtimeMs(sample)
+    if (selectedSample !== sample) return
+    selectedSampleMtimeMs = mtimeMs
+    restorePersistedSelectionIfValid()
   }
 
   // Persist selection once the editor mounts.
@@ -529,9 +609,11 @@
       const data = (await response.json()) as { themes?: string[] }
       const themes = data.themes ?? []
       highlightThemes = themes
-      const preferred = themes.includes(DEFAULT_THEME_NAME)
-        ? DEFAULT_THEME_NAME
-        : themes[0] ?? DEFAULT_THEME_NAME
+      const preferred = preferredThemeName && themes.includes(preferredThemeName)
+        ? preferredThemeName
+        : themes.includes(DEFAULT_THEME_NAME)
+          ? DEFAULT_THEME_NAME
+          : themes[0] ?? DEFAULT_THEME_NAME
       await loadTheme(preferred)
     } catch {
       // ignore theme load errors
@@ -605,6 +687,7 @@
       return
     }
     selectedSample = DEFAULT_SAMPLE_OPTION
+    selectedSampleMtimeMs = null
     sourceText = ''
     sourceView?.dispatch({
       changes: { from: 0, to: sourceView.state.doc.length, insert: '' }
@@ -616,10 +699,12 @@
     const sample = sampleContent[path]
     if (!sample) {
       sourceText = ''
+      selectedSampleMtimeMs = null
       sourceError = 'Failed to load the selected sample.'
     } else {
       sourceText = sample
       sourceError = null
+      void refreshSampleMtime(path)
     }
     sourceView?.dispatch({
       changes: { from: 0, to: sourceView.state.doc.length, insert: sourceText }
@@ -632,6 +717,7 @@
     selectedSample = value
     if (!value) {
       selectedSample = DEFAULT_SAMPLE_OPTION
+      selectedSampleMtimeMs = null
       return
     }
     const selection = SAMPLE_OPTIONS.find((option) => option.value === value)
@@ -645,6 +731,7 @@
   const updateListener = EditorView.updateListener.of((update) => {
     if (!view) return
     if (!update.selectionSet) return
+    persistSelection()
 
     const head = update.state.selection.main.head
     const path = findPathAtPos(editorState, head) ?? findClosestPathAtPos(editorState, head)
@@ -688,7 +775,6 @@
 
   // Initialize the editor view on mount.
   onMount(() => {
-    void loadThemes()
     // Refresh theme data when user themes are erased from the command palette.
     const onThemesErased = () => {
       void loadThemes()
@@ -701,13 +787,14 @@
       )
     }
 
-    const persisted = readPersistedSelection()
+    const persisted = readPersistedEditorSession()
     if (persisted) {
       sourceLanguage = normalizeLanguage(
         persisted.language,
         LANGUAGE_OPTIONS,
         DEFAULT_LANGUAGE
       )
+      preferredThemeName = persisted.theme
       if (persisted.sample) {
         const sample = SAMPLE_OPTIONS.find((option) => option.value === persisted.sample)
         if (sample?.supported && sampleContent[persisted.sample]) {
@@ -715,7 +802,16 @@
           sourceText = sampleContent[persisted.sample]
         }
       }
+      if (persisted.sample && persisted.selection) {
+        pendingSelectionRestore = {
+          sample: persisted.sample,
+          sampleMtimeMs: persisted.sampleMtimeMs,
+          selection: persisted.selection
+        }
+      }
     }
+
+    void loadThemes()
 
     if (!ruleprojText) {
       const ruleprojPath = findRuleprojSamplePath(SAMPLE_OPTIONS)
@@ -734,6 +830,11 @@
         selectedSample = fallback.value
         sourceText = sampleContent[fallback.value]
       }
+    }
+    if (selectedSample) {
+      void refreshSampleMtime(selectedSample)
+    } else {
+      selectedSampleMtimeMs = null
     }
     sourceView = new EditorView({
       parent: sourceHost,
@@ -888,6 +989,7 @@
     isMounted = true
     persistSelection()
     if (sourceText) applySource(sourceText)
+    restorePersistedSelectionIfValid()
   })
 
   // Tear down the editor view on destroy.

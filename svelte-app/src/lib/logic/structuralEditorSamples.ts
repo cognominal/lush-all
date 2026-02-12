@@ -48,6 +48,19 @@ export const DEFAULT_SAMPLE_OPTION = ''
 export const DEFAULT_RULEPROJ_SAMPLE = 'svelte-leste.ruleproj'
 export const STORAGE_KEY = 'lush.editor.selection'
 
+export type PersistedEditorSelection = {
+  anchor: number
+  head: number
+}
+
+export type PersistedEditorSession = {
+  language: ProjectionLanguage
+  sample: string
+  theme: string | null
+  sampleMtimeMs: number | null
+  selection: PersistedEditorSelection | null
+}
+
 export type SampleOption = {
   label: string
   value: string
@@ -216,23 +229,75 @@ export function readPersistedSelection(): {
   language: ProjectionLanguage
   sample: string
 } | null {
+  const session = readPersistedEditorSession()
+  if (!session) return null
+  return {
+    language: session.language,
+    sample: session.sample
+  }
+}
+
+// Read the persisted editor session from local storage.
+export function readPersistedEditorSession(): PersistedEditorSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object') return null
-    const record = parsed as { language?: string; sample?: string }
+    const record = parsed as {
+      language?: unknown
+      sample?: unknown
+      theme?: unknown
+      sampleMtimeMs?: unknown
+      selection?: unknown
+    }
     const language = record.language
     const sample = record.sample
     if (typeof language !== 'string' || !isProjectionLanguage(language)) {
       return null
     }
+    const theme = readPersistedTheme(record)
+    const sampleMtimeMs = readPersistedSampleMtime(record)
+    const selection = readPersistedSelectionRange(record)
     return {
       language,
-      sample: typeof sample === 'string' ? sample : DEFAULT_SAMPLE_OPTION
+      sample: typeof sample === 'string' ? sample : DEFAULT_SAMPLE_OPTION,
+      theme,
+      sampleMtimeMs,
+      selection
     }
   } catch {
     return null
+  }
+}
+
+// Read the persisted theme if present.
+function readPersistedTheme(record: { theme?: unknown }): string | null {
+  return typeof record.theme === 'string' ? record.theme : null
+}
+
+// Read the persisted sample mtime if present.
+function readPersistedSampleMtime(record: { sampleMtimeMs?: unknown }): number | null {
+  return typeof record.sampleMtimeMs === 'number' && Number.isFinite(record.sampleMtimeMs)
+    ? record.sampleMtimeMs
+    : null
+}
+
+// Read the persisted editor selection if present.
+function readPersistedSelectionRange(
+  record: { selection?: unknown }
+): PersistedEditorSelection | null {
+  if (!record.selection || typeof record.selection !== 'object') return null
+  const parsed = record.selection as { anchor?: unknown; head?: unknown }
+  if (typeof parsed.anchor !== 'number' || typeof parsed.head !== 'number') {
+    return null
+  }
+  if (!Number.isFinite(parsed.anchor) || !Number.isFinite(parsed.head)) {
+    return null
+  }
+  return {
+    anchor: parsed.anchor,
+    head: parsed.head
   }
 }
 
