@@ -63,7 +63,12 @@ Always reformulate before acting.
   `bun run --cwd svelte-app build`
 - If changing `yaml/`: prefer `bun run --cwd yaml test:vitest`; keep
   `bun run --cwd yaml build` and `bun run --cwd yaml lint` clean
+  Otherwise run `bun run build` only once a day
 - one line comment for each function created/changed
+
+## Commits
+
+When committing add in the message body the codex session that edited the code.
 
 ## Tauri and non Tauri
 
