@@ -55,7 +55,8 @@ export const JS_TOKEN_TYPES = [
   'variable',
   'operator',
   'punctuation',
-  'number'
+  'number',
+  'Comment'
 ] as const
 
 export type JsTokenType = (typeof JS_TOKEN_TYPES)[number]

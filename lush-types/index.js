@@ -52,7 +52,8 @@ export const JS_TOKEN_TYPES = [
   'variable',
   'operator',
   'punctuation',
-  'number'
+  'number',
+  'Comment'
 ]
 
 const tokenKinds = new Set()

@@ -45,6 +45,7 @@ export type JsTokenType =
   | 'operator'
   | 'punctuation'
   | 'number'
+  | 'Comment'
 
 export const JS_TOKEN_TYPES: readonly JsTokenType[]
 

@@ -7,6 +7,11 @@ type ProjectionOffsets = {
   at: (sourcePos: number) => number
 }
 
+// Return the span start used for projection, including leading trivia.
+function projectionStart(node: ts.Node, sourceFile: ts.SourceFile): number {
+  return node === sourceFile ? sourceFile.getFullStart() : node.getFullStart()
+}
+
 // Return whether a character is horizontal whitespace.
 function isLineWhitespace(char: string): boolean {
   return char === ' ' || char === '\t' || char === '\r' || char === '\f' || char === '\v'
@@ -36,6 +41,9 @@ function tokenTypeForSyntaxKind(kind: ts.SyntaxKind, text: string): TokenTypeNam
   if (kind === ts.SyntaxKind.WhitespaceTrivia || kind === ts.SyntaxKind.NewLineTrivia) {
     return SPACE_TYPE
   }
+  if (kind === ts.SyntaxKind.SingleLineCommentTrivia || kind === ts.SyntaxKind.MultiLineCommentTrivia) {
+    return 'Comment' as unknown as TokenTypeName
+  }
   if (kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword) {
     return 'keyword' as unknown as TokenTypeName
   }
@@ -55,6 +63,32 @@ function tokenTypeForSyntaxKind(kind: ts.SyntaxKind, text: string): TokenTypeNam
     return 'operator' as unknown as TokenTypeName
   }
   return tokenTypeForText(text)
+}
+
+// Collect source positions for TypeScript comment delimiters.
+function collectCommentDelimiterPositions(source: string): Set<number> {
+  const removePositions = new Set<number>()
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, source)
+  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    const tokenStart = scanner.getTokenPos()
+    const tokenEnd = scanner.getTextPos()
+    if (kind === ts.SyntaxKind.SingleLineCommentTrivia) {
+      if (tokenStart + 1 < tokenEnd) {
+        removePositions.add(tokenStart)
+        removePositions.add(tokenStart + 1)
+      }
+      continue
+    }
+    if (kind === ts.SyntaxKind.MultiLineCommentTrivia) {
+      if (tokenStart + 3 < tokenEnd) {
+        removePositions.add(tokenStart)
+        removePositions.add(tokenStart + 1)
+        removePositions.add(tokenEnd - 2)
+        removePositions.add(tokenEnd - 1)
+      }
+    }
+  }
+  return removePositions
 }
 
 // Add opening and closing brace positions for a block-like AST node.
@@ -226,10 +260,12 @@ function collectHiddenPositions(sourceFile: ts.SourceFile, source: string): Set<
   const blockPositions = collectBlockBracePositions(sourceFile, source)
   const predicatePositions = collectPredicateParenPositions(sourceFile, source)
   const quotePositions = collectStringQuotePositions(sourceFile, source)
+  const commentDelimiterPositions = collectCommentDelimiterPositions(source)
   const hidden = new Set<number>([
     ...blockPositions,
     ...predicatePositions,
-    ...quotePositions
+    ...quotePositions,
+    ...commentDelimiterPositions
   ])
   return refineHiddenSyntaxWhitespace(source, hidden)
 }
@@ -346,18 +382,18 @@ function buildAstNodeSusy(
   hiddenPositions: Set<number>,
   offsets: ProjectionOffsets
 ): SusyNode {
-  const nodeStart = node.getStart(sourceFile)
+  const nodeStart = projectionStart(node, sourceFile)
   const nodeEnd = node.getEnd()
   const kids: SusyNode[] = []
   const childNodes: ts.Node[] = []
   ts.forEachChild(node, (child) => {
     childNodes.push(child)
   })
-  childNodes.sort((left, right) => left.getStart(sourceFile) - right.getStart(sourceFile))
+  childNodes.sort((left, right) => projectionStart(left, sourceFile) - projectionStart(right, sourceFile))
 
   let cursor = nodeStart
   for (const child of childNodes) {
-    const childStart = child.getStart(sourceFile)
+    const childStart = projectionStart(child, sourceFile)
     if (childStart > cursor) {
       kids.push(...buildTextLeaves(source, cursor, childStart, hiddenPositions, offsets))
     }
