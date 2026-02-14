@@ -65,7 +65,8 @@
     sampleContent
   } from '$lib/logic/structuralEditorSamples'
 
-  const { onFocusPath, onRootChange } = $props<{
+  const { name, onFocusPath, onRootChange } = $props<{
+    name: string
     onFocusPath?: (path: number[]) => void
     onRootChange?: (root: SusyNode) => void
   }>()
@@ -1289,7 +1290,7 @@
   }
 </script>
 
-<div data-svelte-cmpnm="StructuralEditor" class="flex h-full min-h-0 flex-col gap-4 p-6">
+<div data-component={`StructuralEditor-${name}`} class="flex h-full min-h-0 flex-col gap-4 p-6">
   <div class="flex items-baseline justify-between">
     <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
       Structural Editor
@@ -1327,6 +1328,7 @@
       </label>
       <div class="flex-1">
         <HighlightEditor
+          name={`${name}-highlight`}
           bind:this={highlightEditorRef}
           value={highlightLine}
           placeholder={highlightPlaceholder}
@@ -1401,7 +1403,11 @@
     <div class="h-full min-h-0" bind:this={host}></div>
   </div>
 
-  <BreadcrumbBar items={crumbs} onSelect={handleBreadcrumbSelect} />
+  <BreadcrumbBar
+    name={`${name}-breadcrumbs`}
+    items={crumbs}
+    onSelect={handleBreadcrumbSelect}
+  />
 
   <div class="text-xs text-surface-400">
     Normal mode keys: i, Tab, Shift+Tab, Enter. Insert mode: Esc, printable

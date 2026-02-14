@@ -13,9 +13,9 @@ This folder contains:
 - `w`, `h` are width and height in screenshot pixels.
 - Origin is the screenshot top-left.
 - `innerComponents` uses the same absolute screenshot coordinate space.
-- Svelte components can be declared in markup with
-  `data-svelte-cmpnm="ComponentFileName"`.
-- `svelteComponent` appears only for Svelte files under `.../components/...`.
+- Components can be declared in markup with
+  `data-component="ComponentName-InstanceName"`.
+- `svelteComponent` is emitted when `data-component` is present.
 - Non-Svelte entries are limited to form fields (`input`, `select`,
   `textarea`, `button`).
 - `name` is made unique by suffixing duplicates (`Name`, `Name_2`, `Name_3`).

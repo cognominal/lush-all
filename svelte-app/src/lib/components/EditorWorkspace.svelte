@@ -4,6 +4,7 @@
   import type { SusyNode } from 'lush-types'
   import { serializePath } from '@lush/structural'
 
+  const { name } = $props<{ name: string }>()
   const DEFAULT_FILTER_KEYS = 'name_loc start end'
 
   let root = $state<SusyNode | null>(null)
@@ -62,9 +63,10 @@
   })
 </script>
 
-<div data-svelte-cmpnm="EditorWorkspace" class="flex h-full min-h-0 flex-col gap-6 lg:flex-row">
+<div data-component={`EditorWorkspace-${name}`} class="flex h-full min-h-0 flex-col gap-6 lg:flex-row">
   <div class="min-h-0 flex-1">
     <StructuralEditor
+      name={`${name}-structural`}
       bind:this={structuralEditorRef}
       onFocusPath={handleStructuralFocusPath}
       onRootChange={(nextRoot) => (root = nextRoot)}
@@ -93,6 +95,7 @@
     </div>
     <div class="min-h-0 flex-1">
       <SusyYamlPanel
+        name={`${name}-yaml`}
         {root}
         {indexer}
         {activePath}

@@ -2,6 +2,7 @@
   import { onDestroy, tick } from 'svelte'
 
   const {
+    name,
     value = '',
     saving = false,
     error = null,
@@ -9,6 +10,7 @@
     onCommit,
     restoreToken = 0
   } = $props<{
+    name: string
     value?: string
     saving?: boolean
     error?: string | null
@@ -115,7 +117,7 @@
   })
 </script>
 
-<div data-svelte-cmpnm="HighlightEditor" class="flex flex-col gap-2">
+<div data-component={`HighlightEditor-${name}`} class="flex flex-col gap-2">
   <div class="flex items-center gap-2">
     <input
       class="w-full rounded-md border border-surface-700/70 bg-surface-900/70 px-3 py-2 text-xs text-surface-100 placeholder:text-surface-500"

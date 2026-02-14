@@ -85,7 +85,7 @@ function formatComponentReport(components) {
   return `${lines.join("\n")}\n`;
 }
 
-// Build the candidate component list from Svelte metadata and form field controls.
+// Build the candidate component list from explicit component markers and form fields.
 function buildComponentCollector() {
   return () => {
     // Create a readable default caption from a component name.
@@ -95,30 +95,6 @@ function buildComponentCollector() {
         .replace(/[_-]+/g, " ")
         .replace(/\s+/g, " ")
         .trim();
-
-    // Extract a Svelte component name only for files under a components folder.
-    const svelteComponentFromMeta = (meta) => {
-      if (!meta || typeof meta !== "object") {
-        return null;
-      }
-      const candidates = [meta.filename, meta.file].filter(
-        (item) => typeof item === "string" && item.length > 0,
-      );
-      if (candidates.length === 0) {
-        return null;
-      }
-      for (const raw of candidates) {
-        const normalized = raw.replace(/\\/g, "/");
-        const inComponentsFolder = normalized.includes("/components/");
-        const isSvelteFile = normalized.endsWith(".svelte");
-        if (!inComponentsFolder || !isSvelteFile) {
-          continue;
-        }
-        const fromPath = normalized.split("/").pop() ?? normalized;
-        return fromPath.replace(/\.svelte$/, "");
-      }
-      return null;
-    };
 
     // Convert an element to a stable rectangle in screenshot pixel space.
     const rectFromElement = (element) => {
@@ -149,35 +125,14 @@ function buildComponentCollector() {
         continue;
       }
 
-      const hasSvelteMeta = Object.prototype.hasOwnProperty.call(
-        element,
-        "__svelte_meta",
-      );
-      if (hasSvelteMeta) {
-        const meta = element.__svelte_meta;
-        const svelteComponent = svelteComponentFromMeta(meta);
-        if (svelteComponent) {
-          candidates.push({
-            element,
-            name: svelteComponent,
-            svelteComponent,
-            componentType: svelteComponent,
-            caption: captionFromName(svelteComponent),
-            ...rect,
-          });
-          continue;
-        }
-      }
-
-      const declaredSvelteComponent =
-        element.getAttribute("data-svelte-cmpnm")?.trim() ?? "";
-      if (declaredSvelteComponent.length > 0) {
+      const declaredComponent = element.getAttribute("data-component")?.trim() ?? "";
+      if (declaredComponent.length > 0) {
         candidates.push({
           element,
-          name: declaredSvelteComponent,
-          svelteComponent: declaredSvelteComponent,
-          componentType: declaredSvelteComponent,
-          caption: captionFromName(declaredSvelteComponent),
+          name: declaredComponent,
+          svelteComponent: declaredComponent,
+          componentType: declaredComponent,
+          caption: captionFromName(declaredComponent),
           ...rect,
         });
         continue;

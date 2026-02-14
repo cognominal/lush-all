@@ -3,5 +3,5 @@
 </script>
 
 <div class="h-full min-h-0">
-  <EditorWorkspace />
+  <EditorWorkspace name="editor" />
 </div>

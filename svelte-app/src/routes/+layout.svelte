@@ -84,8 +84,8 @@
 
   import SvelteDevMenuBar from '$lib/components/SvelteDevMenuBar.svelte'
   import { LUSH_MENU_BAR } from '$lib/logic/menu'
-  import { onDestroy, onMount } from 'svelte'
-  import { goto } from '$app/navigation'
+  import { onDestroy, onMount, tick } from 'svelte'
+  import { afterNavigate, goto } from '$app/navigation'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import { registerCommand, registerKeybinding, type Command } from '$lib/logic/commands'
   import { setYamlFileContent } from '$lib/logic/yamlFile'
@@ -97,6 +97,37 @@
   let teardownPaletteHotkey: (() => void) | null = null
   let teardownEscapeClose: (() => void) | null = null
   let paletteOpen = $state(false)
+
+  // Validate data-component uniqueness for the current route in development.
+  function validateRouteComponentNames() {
+    if (!import.meta.env.DEV) return
+    const routePath = location.pathname
+    const elements = Array.from(document.querySelectorAll('[data-component]'))
+    const seen = new Set<string>()
+    const duplicates = new Set<string>()
+    for (const element of elements) {
+      const value = element.getAttribute('data-component')?.trim() ?? ''
+      if (!value) continue
+      if (seen.has(value)) {
+        duplicates.add(value)
+        continue
+      }
+      seen.add(value)
+    }
+    if (duplicates.size === 0) return
+    const duplicateList = Array.from(duplicates).sort().join(', ')
+    throw new Error(`Duplicate data-component values on route ${routePath}: ${duplicateList}`)
+  }
+
+  // Run route component-name validation after navigation and DOM updates settle.
+  function scheduleRouteComponentValidation() {
+    if (!import.meta.env.DEV) return
+    tick().then(() => {
+      requestAnimationFrame(() => {
+        validateRouteComponentNames()
+      })
+    })
+  }
 
   // Open the command palette.
   function openPalette() {
@@ -314,6 +345,7 @@
     }
   }
   onMount(async () => {
+    scheduleRouteComponentValidation()
     registerMenuCommands()
     teardownPaletteHotkey = installPaletteHotkey()
     teardownEscapeClose = installEscapeClose()
@@ -355,6 +387,10 @@
       aboutMessage = typeof evt.payload === 'string' ? evt.payload : 'Lush app (early stage)'
       aboutOpen = true
     })
+  })
+
+  afterNavigate(() => {
+    scheduleRouteComponentValidation()
   })
 
   onDestroy(() => {

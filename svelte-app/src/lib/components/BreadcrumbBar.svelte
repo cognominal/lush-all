@@ -5,6 +5,7 @@
     value?: string
   }
   export let items: BreadcrumbItem[] = []
+  export let name = 'default'
 
   export let onHover: ((range: { from: number; to: number } | null) => void) | undefined =
     undefined
@@ -14,7 +15,7 @@
 </script>
 <p class=""></p>
 <div
-  data-svelte-cmpnm="BreadcrumbBar"
+  data-component={`BreadcrumbBar-${name}`}
   class="flex flex-wrap items-center gap-1.5 border-t border-surface-500/20 px-3 py-2"
   aria-label="Breadcrumbs"
 >

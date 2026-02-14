@@ -96,7 +96,7 @@
         </SplitPane>
       </div>
 
-      <BreadcrumbBar items={crumbs} onSelect={handleCrumbSelect} />
+      <BreadcrumbBar name="docs-main" items={crumbs} onSelect={handleCrumbSelect} />
     </div>
   </div>
 </div>

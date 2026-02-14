@@ -38,12 +38,14 @@
   import { serializePath } from '@lush/structural'
 
   const {
+    name,
     root = null,
     indexer = '',
     filterKeys = '',
     activePath = null,
     onFocusPath
   } = $props<{
+    name: string
     root?: SusyNode | null
     indexer?: string
     filterKeys?: string
@@ -598,7 +600,7 @@
   })
 </script>
 
-<div data-svelte-cmpnm="SusyYamlPanel" class="flex h-full min-h-0 flex-col gap-4 p-6">
+<div data-component={`SusyYamlPanel-${name}`} class="flex h-full min-h-0 flex-col gap-4 p-6">
   <div class="flex items-baseline justify-between">
     <div class="text-xs uppercase tracking-[0.35em] text-surface-400">
       Susy YAML

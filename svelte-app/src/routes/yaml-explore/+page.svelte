@@ -72,6 +72,7 @@
         </div>
 
         <BreadcrumbBar
+          name="yaml-explore-mobile"
           items={crumbs}
           onHover={(range) => (hoverRange = range)}
           onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
@@ -127,6 +128,7 @@
               </div>
 
               <BreadcrumbBar
+                name="yaml-explore-desktop"
                 items={crumbs}
                 onHover={(range) => (hoverRange = range)}
                 onToggle={(range) => (foldToggleRequest = { range, id: ++foldToggleId })}
