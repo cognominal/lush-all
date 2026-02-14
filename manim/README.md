@@ -2,8 +2,10 @@
 
 This folder contains:
 
-- `extract-components.mjs`: Puppeteer screenshot + nested component extraction.
-- `editor_component_scene.py`: Manim scene and reusable focus function.
+- `extract-components.mjs`: [Puppeteer](https://pptr.dev/) screenshot + nested component extraction.
+- `editor_component_scene.py`: [Manim](https://www.manim.community/) scene and reusable focus function.
+- `component_crop_sequence_scene.py`: one-by-one centered component crops
+  with fade-in/fade-out transitions.
 
 ## Coordinate convention
 
@@ -44,6 +46,7 @@ Use `2` if you want sharper images and larger pixel coordinates.
 The extractor also writes an aligned text table report:
 `manim/output/editor-components.txt`.
 Each row has:
+
 - component `path`
 - component `name`
 - `componentType` (input type or Svelte component name)
@@ -62,3 +65,14 @@ from manim.editor_component_scene import render_editor_demo
 
 render_editor_demo(output_file="editor-demo.mp4", quality="h", preview=False)
 ```
+
+## Render crop sequence
+
+```bash
+manim -qh -o editor-components-sequence.mp4 \
+  manim/component_crop_sequence_scene.py \
+  ComponentCropSequence
+```
+
+This scene crops each extracted component from the source screenshot and
+shows each crop centered in turn with `FadeIn -> hold -> FadeOut`.
