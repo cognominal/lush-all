@@ -12,11 +12,14 @@
   export let onToggle: ((range: { from: number; to: number } | null) => void) | undefined =
     undefined
   export let onSelect: ((value: string) => void) | undefined = undefined
+  export let scrollable = false
 </script>
 <p class=""></p>
 <div
   data-component={`BreadcrumbBar-${name}`}
-  class="flex flex-wrap items-center gap-1.5 border-t border-surface-500/20 px-3 py-2"
+  class={`flex items-center gap-1.5 border-t border-surface-500/20 px-3 py-2 ${
+    scrollable ? 'w-full flex-nowrap overflow-x-auto overflow-y-hidden' : 'flex-wrap'
+  }`}
   aria-label="Breadcrumbs"
 >
   {#if items.length === 0}

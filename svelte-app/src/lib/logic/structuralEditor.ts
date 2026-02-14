@@ -191,7 +191,7 @@ export function buildDecorations(
   visit(state.root, [])
 
   if (state.mode === 'normal') {
-    const focusSpan = getSpan(state, state.currentPath)
+    const focusSpan = getSpan(state, state.currentTokPath)
     if (focusSpan) {
       const focusRange = getTextRange(focusSpan)
       const isMultilineFocus =

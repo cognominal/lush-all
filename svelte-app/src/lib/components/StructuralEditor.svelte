@@ -28,7 +28,6 @@
     type StructuralEditorState
   } from '@lush/structural'
   import highlightRaw from '@lush/structural/themes/default.yaml?raw'
-  import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import HighlightEditor from '$lib/components/HighlightEditor.svelte'
   import { onDidChangeConfiguration, workspace } from '$lib/config/workspaceConfiguration'
   import {
@@ -65,10 +64,11 @@
     sampleContent
   } from '$lib/logic/structuralEditorSamples'
 
-  const { name, onFocusPath, onRootChange } = $props<{
+  const { name, onFocusPath, onRootChange, onBreadcrumbsChange } = $props<{
     name: string
     onFocusPath?: (path: number[]) => void
     onRootChange?: (root: SusyNode) => void
+    onBreadcrumbsChange?: (items: BreadcrumbItem[]) => void
   }>()
   let activePath = $state<number[] | null>(null)
 
@@ -79,6 +79,7 @@
   let tokPaths: number[][] = []
   let lastRoot: SusyNode | null = null
   let isMounted = $state(false)
+  let isSyncingView = false
 
   const highlightTheme = new Compartment()
   let highlightYamlText = $state(highlightRaw)
@@ -199,7 +200,7 @@
   // Compute the multiline block-highlight range for the current focus.
   function getBlockFocusRange(state: StructuralEditorState): { from: number; to: number } | null {
     if (!blockHighlightEnabled || state.mode !== 'normal') return null
-    const span = getSpan(state, state.currentPath)
+    const span = getSpan(state, state.currentTokPath)
     if (!span) return null
     const range = getTextRange(span)
     if (range.from >= range.to) return null
@@ -520,7 +521,7 @@
     onRootChange?.(editorState.root)
   })
 
-  // Dispatch focus updates when the current token changes.
+  // Dispatch focus updates when the current token path changes.
   $effect(() => {
     const nextKey = serializePath(editorState.currentTokPath)
     if (nextKey === lastFocusKey) return
@@ -528,7 +529,7 @@
     dispatchFocusPath(editorState)
   })
 
-  // Dispatch focus updates when the current token changes.
+  // Dispatch focus updates from the current token path.
   function dispatchFocusPath(next: StructuralEditorState): void {
     const nextPath = [...next.currentTokPath]
     if (import.meta.env.DEV) {
@@ -583,22 +584,29 @@
   // Sync state and view changes through shared logic.
   function applyState(next: StructuralEditorState, emitFocus = true) {
     const focusRange = getBlockFocusRange(next)
-    const nextState = setStateAndSync(
-      next,
-      view,
-      setDecorations,
-      highlightRegistry,
-      focusWidget,
-      blockHighlightEnabled,
-      setFocusHighlightRange,
-      focusRange
-    )
+    isSyncingView = true
+    let nextState: StructuralEditorState
+    try {
+      nextState = setStateAndSync(
+        next,
+        view,
+        setDecorations,
+        highlightRegistry,
+        focusWidget,
+        blockHighlightEnabled,
+        setFocusHighlightRange,
+        focusRange
+      )
+    } finally {
+      isSyncingView = false
+    }
     const currentState = untrack(() => editorState)
     if (nextState !== currentState) {
       editorState = nextState
     }
     refreshHighlightForState(nextState)
     updateDebugState(nextState, tokPaths)
+    emitBreadcrumbs(nextState)
     if (emitFocus) dispatchFocusPath(nextState)
   }
 
@@ -731,6 +739,7 @@
   // Track selection updates and sync cursor/path state.
   const updateListener = EditorView.updateListener.of((update) => {
     if (!view) return
+    if (isSyncingView) return
     if (!update.selectionSet) return
     persistSelection()
 
@@ -762,9 +771,7 @@
       currentTokPath: inputPath,
       cursorOffset: nextOffset
     }
-    editorState = nextState
-    refreshHighlightForState(nextState)
-    dispatchFocusPath(nextState)
+    applyState(nextState)
   })
 
   // Update the structural editor when source edits occur.
@@ -890,10 +897,12 @@
               const inputPath = isSusyTok(token)
                 ? path
                 : resolveInsertTarget(editorState.root, path).path
+              const nextCursorOffset = clamp(pos, 0, editorState.projectionText.length)
               applyState({
                 ...editorState,
                 currentPath: path,
-                currentTokPath: inputPath
+                currentTokPath: inputPath,
+                cursorOffset: nextCursorOffset
               })
               view.focus()
               return false
@@ -1006,12 +1015,10 @@
     sourceView = null
   })
 
-  let crumbs = $state<BreadcrumbItem[]>([])
-
-  // Update breadcrumbs when the current path changes.
-  $effect(() => {
-    crumbs = buildBreadcrumbs(editorState, editorState.currentPath)
-  })
+  // Emit breadcrumb updates from the latest structural path.
+  function emitBreadcrumbs(next: StructuralEditorState): void {
+    onBreadcrumbsChange?.(buildBreadcrumbs(next, next.currentPath))
+  }
 
   // Apply breadcrumb selection by path and sync focus across panels.
   function handleBreadcrumbSelect(value: string): void {
@@ -1031,6 +1038,11 @@
       currentTokPath: nextPath,
       cursorOffset: nextCursorOffset
     })
+  }
+
+  // Apply an external breadcrumb selection request from the workspace.
+  export function selectBreadcrumb(value: string): void {
+    handleBreadcrumbSelect(value)
   }
 
   $effect(() => {
@@ -1402,12 +1414,6 @@
   <div class="flex-1 min-h-0 rounded-xl border border-surface-700/60 bg-surface-900/70">
     <div class="h-full min-h-0" bind:this={host}></div>
   </div>
-
-  <BreadcrumbBar
-    name={`${name}-breadcrumbs`}
-    items={crumbs}
-    onSelect={handleBreadcrumbSelect}
-  />
 
   <div class="text-xs text-surface-400">
     Normal mode keys: i, Tab, Shift+Tab, Enter. Insert mode: Esc, printable

@@ -1,6 +1,8 @@
 <script lang="ts">
+  import BreadcrumbBar from '$lib/components/BreadcrumbBar.svelte'
   import StructuralEditor from '$lib/components/StructuralEditor.svelte'
   import SusyYamlPanel from '$lib/components/SusyYamlPanel.svelte'
+  import type { BreadcrumbItem } from '$lib/logic/structuralEditor'
   import type { SusyNode } from 'lush-types'
   import { serializePath } from '@lush/structural'
 
@@ -12,8 +14,10 @@
   let filterKeys = $state(DEFAULT_FILTER_KEYS)
   let activePath = $state<number[] | null>(null)
   let focusPathCount = $state(0)
+  let breadcrumbs = $state<BreadcrumbItem[]>([])
   let structuralEditorRef = $state<{
     setActivePath?: (path: number[] | null) => void
+    selectBreadcrumb?: (value: string) => void
   } | null>(null)
 
   // Expose the active path for devtools diagnostics.
@@ -58,50 +62,64 @@
     applyFocusPath(path, 'yaml', true)
   }
 
+  // Route breadcrumb selection to the structural editor for focus sync.
+  function handleBreadcrumbSelect(value: string): void {
+    structuralEditorRef?.selectBreadcrumb?.(value)
+  }
+
   $effect(() => {
     updateDebugActivePath(activePath)
   })
 </script>
 
-<div data-component={`EditorWorkspace-${name}`} class="flex h-full min-h-0 flex-col gap-6 lg:flex-row">
-  <div class="min-h-0 flex-1">
-    <StructuralEditor
-      name={`${name}-structural`}
-      bind:this={structuralEditorRef}
-      onFocusPath={handleStructuralFocusPath}
-      onRootChange={(nextRoot) => (root = nextRoot)}
-    />
-  </div>
-  <div class="min-h-0 flex flex-1 flex-col">
-    <div class="flex flex-col gap-3 px-6 pt-6">
-      <label class="flex flex-col gap-2 text-xs text-surface-300">
-        <span class="uppercase tracking-[0.35em] text-surface-400">Indexer</span>
-        <input
-          class="w-full rounded-lg border border-surface-700/60 bg-surface-950/70 px-3 py-2 text-sm text-surface-100"
-          placeholder="e.g. kids.0.kids.2"
-          bind:value={indexer}
-        />
-      </label>
-      <label class="flex flex-col gap-2 text-xs text-surface-300">
-        <span class="uppercase tracking-[0.35em] text-surface-400">
-          Filter keys
-        </span>
-        <input
-          class="w-full rounded-lg border border-surface-700/60 bg-surface-950/70 px-3 py-2 text-sm text-surface-100"
-          placeholder="space separated keys"
-          bind:value={filterKeys}
-        />
-      </label>
-    </div>
+<div data-component={`EditorWorkspace-${name}`} class="flex h-full min-h-0 flex-col">
+  <div class="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
     <div class="min-h-0 flex-1">
-      <SusyYamlPanel
-        name={`${name}-yaml`}
-        {root}
-        {indexer}
-        {activePath}
-        filterKeys={filterKeys}
-        onFocusPath={handleYamlFocusPath}
+      <StructuralEditor
+        name={`${name}-structural`}
+        bind:this={structuralEditorRef}
+        onFocusPath={handleStructuralFocusPath}
+        onRootChange={(nextRoot) => (root = nextRoot)}
+        onBreadcrumbsChange={(items) => (breadcrumbs = items)}
       />
     </div>
+    <div class="min-h-0 flex flex-1 flex-col">
+      <div class="flex flex-col gap-3 px-6 pt-6">
+        <label class="flex flex-col gap-2 text-xs text-surface-300">
+          <span class="uppercase tracking-[0.35em] text-surface-400">Indexer</span>
+          <input
+            class="w-full rounded-lg border border-surface-700/60 bg-surface-950/70 px-3 py-2 text-sm text-surface-100"
+            placeholder="e.g. kids.0.kids.2"
+            bind:value={indexer}
+          />
+        </label>
+        <label class="flex flex-col gap-2 text-xs text-surface-300">
+          <span class="uppercase tracking-[0.35em] text-surface-400">
+            Filter keys
+          </span>
+          <input
+            class="w-full rounded-lg border border-surface-700/60 bg-surface-950/70 px-3 py-2 text-sm text-surface-100"
+            placeholder="space separated keys"
+            bind:value={filterKeys}
+          />
+        </label>
+      </div>
+      <div class="min-h-0 flex-1">
+        <SusyYamlPanel
+          name={`${name}-yaml`}
+          {root}
+          {indexer}
+          {activePath}
+          filterKeys={filterKeys}
+          onFocusPath={handleYamlFocusPath}
+        />
+      </div>
+    </div>
   </div>
+  <BreadcrumbBar
+    name={`${name}-breadcrumbs`}
+    items={breadcrumbs}
+    onSelect={handleBreadcrumbSelect}
+    scrollable={true}
+  />
 </div>
