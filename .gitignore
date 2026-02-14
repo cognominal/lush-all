@@ -28,3 +28,7 @@ svelte-app/workos-keys.txt
 # Local session summaries
 summaries/
 day-summary/
+
+manim/__pycache__/*
+manim/output/crops
+/media
